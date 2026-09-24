@@ -1,3 +1,19 @@
+async function checkAuth() {
+    const {
+        data: { session }
+    } = await supabaseClient.auth.getSession();
+
+    if (!session) {
+        showLogin();
+        return;
+    }
+
+    console.log('Usuario autenticado:', session.user.id);
+
+    render();
+}
+
+
 let data=loadData(); let currentView='home'; let currentGatheringId=null;
 const app=document.getElementById('app');
 const personName=id=>data.group.people.find(p=>p.id===id)?.name||'Persona';
@@ -36,9 +52,75 @@ function saveExpense(){const g=data.gatherings.find(x=>x.id===currentGatheringId
 function showResult(){const g=data.gatherings.find(x=>x.id===currentGatheringId);const balances=calculateBalances(g);const transfers=simplifyTransfers(balances);const total=g.expenses.reduce((s,e)=>s+e.amount,0);g.lastTransfers=transfers;g.status=transfers.length?'pending':'settled';saveData(data);app.innerHTML=`<div class="content"><button class="back" onclick="renderGathering()">← Volver</button><section class="hero"><div class="eyebrow">🧮 RUSH SPLIT hizo las cuentas</div><h1>💸 ¿Quién le paga a quién?</h1><p>${formatMoney(total)} · ${transfers.length} ${transfers.length===1?'pago':'pagos'} para saldar.</p></section><div class="card result-box">${transfers.length?transfers.map(t=>`<div class="transfer"><strong>🔴 ${escapeHtml(personName(t.from))} → 🟢 ${escapeHtml(personName(t.to))}</strong><span>${formatMoney(t.amount)}</span></div>`).join(''):'<div class="success" style="font-weight:800">🟢 Todo saldado.</div>'}</div><button class="big-btn whatsapp" onclick="shareWhatsApp()">📲 COMPARTIR EN WHATSAPP</button><div class="section-title"><h2>Estado</h2></div><div class="card">${Object.entries(balances).map(([id,v])=>`<div class="expense-row"><div class="grow"><strong>${escapeHtml(personName(id))}</strong></div><span class="${v>0?'success':v<0?'danger':''}">${v>0?'Recibe ':v<0?'Paga ':'Está saldado '} ${v?formatMoney(Math.abs(v)):''}</span></div>`).join('')}</div></div>`}
 function shareWhatsApp(){const g=data.gatherings.find(x=>x.id===currentGatheringId);const transfers=g.lastTransfers||simplifyTransfers(calculateBalances(g));const total=g.expenses.reduce((s,e)=>s+e.amount,0);const cats=[...new Set(g.expenses.map(e=>emojiFor(e.type)))].join('');let text=`🥩 RUSH SPLIT — ${g.name}\n\n💰 Total: ${formatMoney(total)}\n${cats}\n\n💸 Para saldar:\n\n`;text+=transfers.length?transfers.map(t=>`${personName(t.from)} → ${personName(t.to)}: ${formatMoney(t.amount)}`).join('\n'):'🟢 Todo saldado';text+='\n\n🟢 Con estos pagos queda todo saldado.\n\n🥩 RUSH SPLIT';window.location.href='https://wa.me/?text='+encodeURIComponent(text)}
 function escapeHtml(s){return String(s).replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]))}
-render();
+checkAuth();
 
 // Persistencia adicional: si el navegador soporta service workers, dejamos preparada la PWA.
 if ('serviceWorker' in navigator && location.protocol !== 'file:') {
   navigator.serviceWorker.register('./sw.js').catch(()=>{});
+}
+
+function showLogin() {
+    document.body.innerHTML = `
+        <div style="
+            min-height:100vh;
+            display:flex;
+            align-items:center;
+            justify-content:center;
+            padding:24px;
+        ">
+            <div style="
+                width:100%;
+                max-width:400px;
+                padding:30px;
+                border-radius:20px;
+                background:#1c1c1c;
+            ">
+                <h1>🏃 RUSH SPLIT</h1>
+
+                <p>Iniciá sesión para continuar</p>
+
+                <input
+                    id="loginEmail"
+                    type="email"
+                    placeholder="Email"
+                    style="width:100%;margin-bottom:12px;padding:12px;"
+                >
+
+                <input
+                    id="loginPassword"
+                    type="password"
+                    placeholder="Contraseña"
+                    style="width:100%;margin-bottom:12px;padding:12px;"
+                >
+
+                <button
+                    onclick="login()"
+                    style="width:100%;padding:14px;"
+                >
+                    INGRESAR
+                </button>
+
+                <p id="loginError" style="color:#ff6b6b;"></p>
+            </div>
+        </div>
+    `;
+}
+
+
+async function login() {
+    const email = document.getElementById('loginEmail').value;
+    const password = document.getElementById('loginPassword').value;
+
+    const { error } = await supabaseClient.auth.signInWithPassword({
+        email,
+        password
+    });
+
+    if (error) {
+        document.getElementById('loginError').textContent =
+            error.message;
+        return;
+    }
+
+    location.reload();
 }

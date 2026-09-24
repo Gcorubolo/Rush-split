@@ -10,6 +10,19 @@ async function checkAuth() {
 
     console.log('Usuario autenticado:', session.user.id);
 
+    const { data: profile, error } = await supabaseClient
+        .from('profiles')
+        .select('*')
+        .eq('id', session.user.id)
+        .single();
+
+    if (error) {
+        console.error('Error cargando perfil:', error);
+        return;
+    }
+
+    console.log('Perfil cargado:', profile);
+
     render();
 }
 

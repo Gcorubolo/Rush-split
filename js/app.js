@@ -33,8 +33,22 @@ if (groupsError) {
 }
 
 console.log('Grupos cargados:', groups);
-    
-    render();
+
+if (groups.length > 0) {
+    const { data: groupMembers, error: membersError } = await supabaseClient
+        .from('group_members')
+        .select('*')
+        .eq('group_id', groups[0].id);
+
+    if (membersError) {
+        console.error('Error cargando miembros:', membersError);
+        return;
+    }
+
+    console.log('Miembros cargados:', groupMembers);
+}
+
+render();
 }
 
 

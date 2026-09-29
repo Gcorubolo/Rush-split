@@ -58,6 +58,18 @@ if (gatheringsError) {
 }
 
 console.log('Juntadas cargadas:', gatherings);
+    
+    const { data: gatheringMembers, error: gatheringMembersError } = await supabaseClient
+    .from('gathering_members')
+    .select('*')
+    .eq('gathering_id', gatherings[0].id);
+
+if (gatheringMembersError) {
+    console.error('Error cargando participantes:', gatheringMembersError);
+    return;
+}
+
+console.log('Participantes de la juntada:', gatheringMembers);
 }
 
 render();

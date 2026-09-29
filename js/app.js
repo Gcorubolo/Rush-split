@@ -82,6 +82,22 @@ if (expensesError) {
 }
 
 console.log('Gastos cargados:', expenses);
+
+    const { data: expenseParticipants, error: expenseParticipantsError } =
+    await supabaseClient
+        .from('expense_participants')
+        .select('*')
+        .eq('expense_id', expenses[0].id);
+
+if (expenseParticipantsError) {
+    console.error(
+        'Error cargando participantes del gasto:',
+        expenseParticipantsError
+    );
+    return;
+}
+
+console.log('Participantes del gasto:', expenseParticipants);
 }
 
 render();

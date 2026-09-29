@@ -70,6 +70,18 @@ if (gatheringMembersError) {
 }
 
 console.log('Participantes de la juntada:', gatheringMembers);
+
+    const { data: expenses, error: expensesError } = await supabaseClient
+    .from('expenses')
+    .select('*')
+    .eq('gathering_id', gatherings[0].id);
+
+if (expensesError) {
+    console.error('Error cargando gastos:', expensesError);
+    return;
+}
+
+console.log('Gastos cargados:', expenses);
 }
 
 render();

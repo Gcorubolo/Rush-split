@@ -46,6 +46,18 @@ if (groups.length > 0) {
     }
 
     console.log('Miembros cargados:', groupMembers);
+
+    const { data: gatherings, error: gatheringsError } = await supabaseClient
+    .from('gatherings')
+    .select('*')
+    .eq('group_id', groups[0].id);
+
+if (gatheringsError) {
+    console.error('Error cargando juntadas:', gatheringsError);
+    return;
+}
+
+console.log('Juntadas cargadas:', gatherings);
 }
 
 render();

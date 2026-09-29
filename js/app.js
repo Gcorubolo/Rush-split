@@ -23,6 +23,17 @@ async function checkAuth() {
 
     console.log('Perfil cargado:', profile);
 
+    const { data: groups, error: groupsError } = await supabaseClient
+    .from('groups')
+    .select('*');
+
+if (groupsError) {
+    console.error('Error cargando grupos:', groupsError);
+    return;
+}
+
+console.log('Grupos cargados:', groups);
+    
     render();
 }
 

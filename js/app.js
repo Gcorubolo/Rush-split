@@ -98,6 +98,19 @@ if (expenseParticipantsError) {
 }
 
 console.log('Participantes del gasto:', expenseParticipants);
+
+    const { data: settlements, error: settlementsError } =
+    await supabaseClient
+        .from('settlements')
+        .select('*')
+        .eq('gathering_id', gatherings[0].id);
+
+if (settlementsError) {
+    console.error('Error cargando settlements:', settlementsError);
+    return;
+}
+
+console.log('Settlements cargados:', settlements);
 }
 
 render();

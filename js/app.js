@@ -46,9 +46,167 @@ const fmtDate=d=>new Date(d).toLocaleDateString('es-AR',{day:'2-digit',month:'2-
 function setView(v){currentView=v;currentGatheringId=null;render()}
 
 document.addEventListener('click',e=>{const btn=e.target.closest('.nav-item');if(btn){e.preventDefault();setView(btn.dataset.view)}});
-function render(){document.querySelectorAll('.nav-item').forEach(b=>b.classList.toggle('active',b.dataset.view===currentView)); if(currentView==='home')renderHome();else if(currentView==='history')renderHistory();else renderPeople()}
+function render() {
+    document
+        .querySelectorAll('.nav-item')
+        .forEach(b => {
+            b.classList.toggle(
+                'active',
+                b.dataset.view === currentView
+            );
+        });
+
+    if (currentView === 'home') {
+        renderHome();
+    } else if (currentView === 'history') {
+        renderHistory();
+    } else if (currentView === 'groups') {
+        renderGroups();
+    } else if (currentView === 'people') {
+        renderPeople();
+    }
+}
 function shell(content){app.innerHTML=`<div class="content">${content}</div>`}
-function renderHome(){const pending=data.gatherings.filter(g=>g.status!=='settled').length;const settled=data.gatherings.length-pending;shell(`<section class="hero"><div class="eyebrow">Tu grupo, tus cuentas, cero quilombo.</div><h1>🥩 RUSH SPLIT</h1><p>Dividí. Saldá. Listo.</p></section><div class="card group-card"><div><div class="group-title">🍻 ${data.group.name}</div><div class="muted">${data.group.people.length} integrantes</div><div class="stats"><span class="pill yellow">🟡 ${pending} pendientes</span><span class="pill green">🟢 ${settled} saldadas</span></div></div><div style="font-size:42px">💸</div></div><button class="big-btn" onclick="newGathering()">＋ NUEVA JUNTADA</button><div class="section-title"><h2>Últimas juntadas</h2><button class="back" onclick="setView('history')">Ver todas →</button></div><div class="card">${recentHistory()}</div>`)}
+function renderHome() {
+    const profile = window.supabaseData?.profile;
+
+    const name = profile?.display_name || 'Ahí';
+
+    shell(`
+        <section class="hero">
+            <div class="eyebrow">
+                Todo organizado. Sin quilombo.
+            </div>
+
+            <h1>👋 Hola, ${escapeHtml(name)}</h1>
+
+            <p>
+                Tus gastos compartidos, todos en un solo lugar.
+            </p>
+        </section>
+
+        <div class="card">
+            <div class="section-title">
+                <h2>🚀 Empezá por acá</h2>
+            </div>
+
+            <p class="muted">
+                Elegí un grupo para ver sus juntadas,
+                integrantes y gastos.
+            </p>
+
+            <button
+                class="big-btn"
+                onclick="setView('groups')"
+            >
+                👥 VER MIS GRUPOS
+            </button>
+        </div>
+
+        <div class="card">
+            <div class="section-title">
+                <h2>📜 Actividad reciente</h2>
+
+                <button
+                    class="back"
+                    onclick="setView('history')"
+                >
+                    Ver historial →
+                </button>
+            </div>
+
+            <div class="empty">
+                Acá vamos a mostrar tus últimas
+                actividades.
+            </div>
+        </div>
+    `);
+}
+function renderGroups() {
+    const groups = window.supabaseData?.groups || [];
+
+    shell(`
+        <section class="hero">
+            <div class="eyebrow">
+                Tus grupos
+            </div>
+
+            <h1>👥 Mis grupos</h1>
+
+            <p>
+                Elegí dónde querés entrar.
+            </p>
+        </section>
+
+        <div class="card">
+
+            ${
+                groups.length
+                    ? groups.map(group => `
+                        <div
+                            class="history-item"
+                            onclick="openGroup('${group.id}')"
+                            style="cursor:pointer"
+                        >
+
+                            <div class="history-emoji">
+                                🍻
+                            </div>
+
+                            <div class="history-main">
+                                <strong>
+                                    ${escapeHtml(group.name)}
+                                </strong>
+
+                                <small>
+                                    Grupo compartido
+                                </small>
+                            </div>
+
+                            <div class="history-side">
+                                <span style="font-size:24px">
+                                    →
+                                </span>
+                            </div>
+
+                        </div>
+                    `).join('')
+                    : `
+                        <div class="empty">
+                            Todavía no pertenecés a ningún grupo.
+                        </div>
+                    `
+            }
+
+        </div>
+
+        <button
+            class="big-btn"
+            onclick="createGroup()"
+        >
+            ＋ NUEVO GRUPO
+        </button>
+    `);
+}
+function openGroup(groupId) {
+    const groups = window.supabaseData?.groups || [];
+
+    const group = groups.find(g => g.id === groupId);
+
+    if (!group) {
+        alert('No se encontró el grupo.');
+        return;
+    }
+
+    window.supabaseData.currentGroup = group;
+    window.supabaseData.currentGroupId = group.id;
+
+    console.log('Grupo seleccionado:', group);
+
+    currentView = 'people';
+
+    render();
+}
 function recentHistory(){if(!data.gatherings.length)return '<div class="empty">Todavía no hay juntadas.<br>La primera está a un botón. 🍻</div>';return data.gatherings.slice().sort((a,b)=>new Date(b.date)-new Date(a.date)).slice(0,4).map(historyRow).join('')}
 function historyRow(g){const cats=[...new Set(g.expenses.map(e=>emojiFor(e.type)))].join('');return `<div class="history-item" onclick="openGathering('${g.id}')"><div class="history-emoji">${g.emoji||'🍻'}</div><div class="history-main"><strong>${escapeHtml(g.name)}</strong><small>📅 ${fmtDate(g.date)} · 👥 ${g.participants.length} · ${cats||'✨'}</small></div><div class="history-side"><div class="amount">${formatMoney(g.expenses.reduce((s,e)=>s+e.amount,0))}</div><div class="status ${g.status==='settled'?'green':'yellow'}">${g.status==='settled'?'🟢 SALDADA':'🟡 PENDIENTE'}</div></div></div>`}
 function renderHistory(){shell(`<section class="hero"><div class="eyebrow">Todo queda guardado.</div><h1>📜 Historial</h1><p>Juntadas, comidas y cuentas. Sin perder nada.</p></section><div class="card">${data.gatherings.length?data.gatherings.slice().sort((a,b)=>new Date(b.date)-new Date(a.date)).map(historyRow).join(''):'<div class="empty">Todavía no hay historial.</div>'}</div>`)}

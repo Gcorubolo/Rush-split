@@ -678,6 +678,10 @@ async function renderActivity() {
     `);
 }
 
+function addExpenseToActivity() {
+    alert('Próximamente: agregar gasto 😎');
+}
+
 function openActivity(activityId) {
     window.supabaseData.currentActivityId = activityId;
 

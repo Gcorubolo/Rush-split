@@ -17,6 +17,19 @@ async function checkAuth() {
         const groups = await getGroups();
         console.log('Grupos cargados:', groups);
 
+        const groupMembers = groups.length
+    ? await getGroupMembers(groups[0].id)
+    : [];
+
+    console.log('Miembros cargados:', groupMembers);
+    
+    window.supabaseData = {
+        user: session.user,
+        profile,
+        groups,
+        groupMembers
+    };
+
         // Por ahora guardamos estos datos temporalmente
         // para que la interfaz siga funcionando mientras
         // hacemos la migración completa desde localStorage.
@@ -48,7 +61,7 @@ function renderHome(){const pending=data.gatherings.filter(g=>g.status!=='settle
 function recentHistory(){if(!data.gatherings.length)return '<div class="empty">Todavía no hay juntadas.<br>La primera está a un botón. 🍻</div>';return data.gatherings.slice().sort((a,b)=>new Date(b.date)-new Date(a.date)).slice(0,4).map(historyRow).join('')}
 function historyRow(g){const cats=[...new Set(g.expenses.map(e=>emojiFor(e.type)))].join('');return `<div class="history-item" onclick="openGathering('${g.id}')"><div class="history-emoji">${g.emoji||'🍻'}</div><div class="history-main"><strong>${escapeHtml(g.name)}</strong><small>📅 ${fmtDate(g.date)} · 👥 ${g.participants.length} · ${cats||'✨'}</small></div><div class="history-side"><div class="amount">${formatMoney(g.expenses.reduce((s,e)=>s+e.amount,0))}</div><div class="status ${g.status==='settled'?'green':'yellow'}">${g.status==='settled'?'🟢 SALDADA':'🟡 PENDIENTE'}</div></div></div>`}
 function renderHistory(){shell(`<section class="hero"><div class="eyebrow">Todo queda guardado.</div><h1>📜 Historial</h1><p>Juntadas, comidas y cuentas. Sin perder nada.</p></section><div class="card">${data.gatherings.length?data.gatherings.slice().sort((a,b)=>new Date(b.date)-new Date(a.date)).map(historyRow).join(''):'<div class="empty">Todavía no hay historial.</div>'}</div>`)}
-function renderPeople(){shell(`<section class="hero"><div class="eyebrow">Personas guardadas en el grupo.</div><h1>👥 RUSH</h1><p>Después elegís quién participa en cada juntada.</p></section><div class="card"><div class="form"><div class="field"><label>Agregar integrante</label><input id="newPerson" placeholder="Ej: Fede" onkeydown="if(event.key==='Enter')addPerson()"/><button class="btn" onclick="addPerson()">＋ Agregar</button></div></div><div style="margin-top:18px">${data.group.people.map(p=>`<div class="expense-row"><div class="history-emoji">👤</div><div class="grow"><strong>${escapeHtml(p.name)}</strong></div><button class="btn danger" onclick="removePerson('${p.id}')">Eliminar</button></div>`).join('')||'<div class="empty">Agregá a la banda. 🍻</div>'}</div></div><button class="big-btn" onclick="setView('home')">🏠 LISTO — IR AL INICIO</button>`)}
+function renderPeople(){shell(`<section class="hero"><div class="eyebrow">Personas guardadas en el grupo.</div><h1>👥 RUSH</h1><p>Después elegís quién participa en cada juntada.</p></section><div class="card"><div class="form"><div class="field"><label>Agregar integrante</label><input id="newPerson" placeholder="Ej: Fede" onkeydown="if(event.key==='Enter')addPerson()"/><button class="btn" onclick="addPerson()">＋ Agregar</button></div></div><div style="margin-top:18px">${window.supabaseData.groupMembers.map(p=>`<div class="expense-row"><div class="history-emoji">👤</div><div class="grow"><strong>${escapeHtml(p.display_name)}</strong></div><button class="btn danger" onclick="removePerson('${p.id}')">Eliminar</button></div>`).join('')||'<div class="empty">Agregá a la banda. 🍻</div>'}</div></div><button class="big-btn" onclick="setView('home')">🏠 LISTO — IR AL INICIO</button>`)}
 function addPerson(){const input=document.getElementById('newPerson');const name=input?.value.trim();if(!name)return;data.group.people.push({id:uid('p'),name});saveData(data);renderPeople()}
 function removePerson(id){if(data.gatherings.some(g=>g.participants.includes(id))){alert('No se puede eliminar porque participa en una juntada guardada.');return}data.group.people=data.group.people.filter(p=>p.id!==id);saveData(data);renderPeople()}
 function newGathering(){if(data.group.people.length<2){alert('Primero agregá al menos 2 integrantes al grupo.');setView('people');return}app.innerHTML=`<div class="content"><button class="back" onclick="setView('home')">← Volver</button><section class="hero"><div class="eyebrow">Nueva juntada</div><h1>🍻 Armemos la cuenta</h1><p>Después RUSH SPLIT se ocupa del resto.</p></section><div class="card"><div class="form"><div class="field"><label>Nombre</label><input id="gName" placeholder="Ej: Asado en casa de Gino"/></div><div class="field"><label>Fecha</label><input id="gDate" type="date" value="${new Date().toISOString().slice(0,10)}"/></div><div class="field"><label>¿Quiénes participaron?</label><div class="people-grid" id="gPeople">${data.group.people.map(p=>`<button class="person-chip" data-id="${p.id}" onclick="toggleChip(this)">👤 ${escapeHtml(p.name)}</button>`).join('')}</div></div><button class="big-btn" onclick="createGathering()">CONTINUAR →</button></div></div></div>`}

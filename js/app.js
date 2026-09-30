@@ -207,6 +207,89 @@ function openGroup(groupId) {
 
     render();
 }
+async function createGroup() {
+    const name = prompt('¿Cómo se llama el nuevo grupo?');
+
+    if (!name) return;
+
+    const cleanName = name.trim();
+
+    if (!cleanName) return;
+
+    const user = window.supabaseData?.user;
+
+    if (!user) {
+        alert('No se encontró el usuario autenticado.');
+        return;
+    }
+
+    // Código temporal de invitación.
+    // Más adelante podemos reemplazarlo por un sistema
+    // de invitaciones más completo.
+    const inviteCode =
+        'RUSH-' +
+        Math.random()
+            .toString(36)
+            .substring(2, 8)
+            .toUpperCase();
+
+    const { data: group, error } = await supabaseClient
+        .from('groups')
+        .insert({
+            name: cleanName,
+            created_by: user.id,
+            invite_code: inviteCode
+        })
+        .select()
+        .single();
+
+    if (error) {
+        console.error('Error creando grupo:', error);
+        alert('No se pudo crear el grupo.');
+        return;
+    }
+
+    console.log('Grupo creado:', group);
+
+    // Agregamos automáticamente al creador
+    // como integrante del grupo.
+    const { data: member, error: memberError } =
+        await supabaseClient
+            .from('group_members')
+            .insert({
+                group_id: group.id,
+                user_id: user.id,
+                display_name:
+                    window.supabaseData?.profile?.display_name ||
+                    'Usuario'
+            })
+            .select()
+            .single();
+
+    if (memberError) {
+        console.error(
+            'Error agregando creador al grupo:',
+            memberError
+        );
+
+        alert(
+            'El grupo fue creado, pero no se pudo agregar tu usuario como integrante.'
+        );
+
+        return;
+    }
+
+    console.log('Creador agregado al grupo:', member);
+
+    // Actualizamos la lista de grupos
+    const groups = await getGroups();
+
+    window.supabaseData.groups = groups;
+
+    // Entramos directamente al grupo nuevo
+    openGroup(group.id);
+}
+
 function recentHistory(){if(!data.gatherings.length)return '<div class="empty">Todavía no hay juntadas.<br>La primera está a un botón. 🍻</div>';return data.gatherings.slice().sort((a,b)=>new Date(b.date)-new Date(a.date)).slice(0,4).map(historyRow).join('')}
 function historyRow(g){const cats=[...new Set(g.expenses.map(e=>emojiFor(e.type)))].join('');return `<div class="history-item" onclick="openGathering('${g.id}')"><div class="history-emoji">${g.emoji||'🍻'}</div><div class="history-main"><strong>${escapeHtml(g.name)}</strong><small>📅 ${fmtDate(g.date)} · 👥 ${g.participants.length} · ${cats||'✨'}</small></div><div class="history-side"><div class="amount">${formatMoney(g.expenses.reduce((s,e)=>s+e.amount,0))}</div><div class="status ${g.status==='settled'?'green':'yellow'}">${g.status==='settled'?'🟢 SALDADA':'🟡 PENDIENTE'}</div></div></div>`}
 function renderHistory(){shell(`<section class="hero"><div class="eyebrow">Todo queda guardado.</div><h1>📜 Historial</h1><p>Juntadas, comidas y cuentas. Sin perder nada.</p></section><div class="card">${data.gatherings.length?data.gatherings.slice().sort((a,b)=>new Date(b.date)-new Date(a.date)).map(historyRow).join(''):'<div class="empty">Todavía no hay historial.</div>'}</div>`)}

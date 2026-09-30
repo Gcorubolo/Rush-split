@@ -10,110 +10,27 @@ async function checkAuth() {
 
     console.log('Usuario autenticado:', session.user.id);
 
-    const { data: profile, error } = await supabaseClient
-        .from('profiles')
-        .select('*')
-        .eq('id', session.user.id)
-        .single();
+    try {
+        const profile = await getProfile(session.user.id);
+        console.log('Perfil cargado:', profile);
 
-    if (error) {
-        console.error('Error cargando perfil:', error);
-        return;
+        const groups = await getGroups();
+        console.log('Grupos cargados:', groups);
+
+        // Por ahora guardamos estos datos temporalmente
+        // para que la interfaz siga funcionando mientras
+        // hacemos la migración completa desde localStorage.
+        window.supabaseData = {
+            user: session.user,
+            profile,
+            groups
+        };
+
+        render();
+
+    } catch (error) {
+        console.error('Error inicializando RUSH SPLIT:', error);
     }
-
-    console.log('Perfil cargado:', profile);
-
-    const { data: groups, error: groupsError } = await supabaseClient
-    .from('groups')
-    .select('*');
-
-if (groupsError) {
-    console.error('Error cargando grupos:', groupsError);
-    return;
-}
-
-console.log('Grupos cargados:', groups);
-
-if (groups.length > 0) {
-    const { data: groupMembers, error: membersError } = await supabaseClient
-        .from('group_members')
-        .select('*')
-        .eq('group_id', groups[0].id);
-
-    if (membersError) {
-        console.error('Error cargando miembros:', membersError);
-        return;
-    }
-
-    console.log('Miembros cargados:', groupMembers);
-
-    const { data: gatherings, error: gatheringsError } = await supabaseClient
-    .from('gatherings')
-    .select('*')
-    .eq('group_id', groups[0].id);
-
-if (gatheringsError) {
-    console.error('Error cargando juntadas:', gatheringsError);
-    return;
-}
-
-console.log('Juntadas cargadas:', gatherings);
-    
-    const { data: gatheringMembers, error: gatheringMembersError } = await supabaseClient
-    .from('gathering_members')
-    .select('*')
-    .eq('gathering_id', gatherings[0].id);
-
-if (gatheringMembersError) {
-    console.error('Error cargando participantes:', gatheringMembersError);
-    return;
-}
-
-console.log('Participantes de la juntada:', gatheringMembers);
-
-    const { data: expenses, error: expensesError } = await supabaseClient
-    .from('expenses')
-    .select('*')
-    .eq('gathering_id', gatherings[0].id);
-
-if (expensesError) {
-    console.error('Error cargando gastos:', expensesError);
-    return;
-}
-
-console.log('Gastos cargados:', expenses);
-
-    const { data: expenseParticipants, error: expenseParticipantsError } =
-    await supabaseClient
-        .from('expense_participants')
-        .select('*')
-        .eq('expense_id', expenses[0].id);
-
-if (expenseParticipantsError) {
-    console.error(
-        'Error cargando participantes del gasto:',
-        expenseParticipantsError
-    );
-    return;
-}
-
-console.log('Participantes del gasto:', expenseParticipants);
-
-    const { data: settlements, error: settlementsError } =
-    await supabaseClient
-        .from('settlements')
-        .select('*')
-        .eq('gathering_id', gatherings[0].id);
-
-if (settlementsError) {
-    console.error('Error cargando settlements:', settlementsError);
-    return;
-}
-
-console.log('Settlements cargados:', settlements);
-}
-
-render();
 }
 
 

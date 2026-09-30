@@ -292,13 +292,22 @@ async function createGroup() {
 function recentHistory(){if(!data.gatherings.length)return '<div class="empty">Todavía no hay juntadas.<br>La primera está a un botón. 🍻</div>';return data.gatherings.slice().sort((a,b)=>new Date(b.date)-new Date(a.date)).slice(0,4).map(historyRow).join('')}
 function historyRow(g){const cats=[...new Set(g.expenses.map(e=>emojiFor(e.type)))].join('');return `<div class="history-item" onclick="openGathering('${g.id}')"><div class="history-emoji">${g.emoji||'🍻'}</div><div class="history-main"><strong>${escapeHtml(g.name)}</strong><small>📅 ${fmtDate(g.date)} · 👥 ${g.participants.length} · ${cats||'✨'}</small></div><div class="history-side"><div class="amount">${formatMoney(g.expenses.reduce((s,e)=>s+e.amount,0))}</div><div class="status ${g.status==='settled'?'green':'yellow'}">${g.status==='settled'?'🟢 SALDADA':'🟡 PENDIENTE'}</div></div></div>`}
 function renderHistory(){shell(`<section class="hero"><div class="eyebrow">Todo queda guardado.</div><h1>📜 Historial</h1><p>Juntadas, comidas y cuentas. Sin perder nada.</p></section><div class="card">${data.gatherings.length?data.gatherings.slice().sort((a,b)=>new Date(b.date)-new Date(a.date)).map(historyRow).join(''):'<div class="empty">Todavía no hay historial.</div>'}</div>`)}
-function renderPeople() {
-    const members = window.supabaseData?.groupMembers || [];
+
+async function renderPeople() {
+    const groupId = window.supabaseData?.currentGroupId;
+
+    if (!groupId) {
+        console.warn('No hay grupo seleccionado.');
+        return;
+    }
+
+    const members = await getGroupMembers(groupId);
+    window.supabaseData.groupMembers = members;
 
     shell(`
         <section class="hero">
             <div class="eyebrow">Personas guardadas en el grupo.</div>
-            <h1>👥 RUSH</h1>
+            <h1>👥 ${escapeHtml(window.supabaseData?.currentGroup?.name || 'Grupo')}</h1>
             <p>Después elegís quién participa en cada juntada.</p>
         </section>
 

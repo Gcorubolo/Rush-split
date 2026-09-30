@@ -148,7 +148,33 @@ async function addPerson() {
 
     renderPeople();
 }
-function removePerson(id){if(data.gatherings.some(g=>g.participants.includes(id))){alert('No se puede eliminar porque participa en una juntada guardada.');return}data.group.people=data.group.people.filter(p=>p.id!==id);saveData(data);renderPeople()}
+async function removePerson(id) {
+    const confirmed = confirm('¿Querés eliminar este integrante del grupo?');
+
+    if (!confirmed) return;
+
+    const { error } = await supabaseClient
+        .from('group_members')
+        .delete()
+        .eq('id', id);
+
+    if (error) {
+        console.error('Error eliminando integrante:', error);
+        alert('No se pudo eliminar el integrante.');
+        return;
+    }
+
+    console.log('Integrante eliminado:', id);
+
+    const groups = window.supabaseData?.groups || [];
+
+    if (groups.length) {
+        window.supabaseData.groupMembers =
+            await getGroupMembers(groups[0].id);
+    }
+
+    renderPeople();
+}
 function newGathering(){if(data.group.people.length<2){alert('Primero agregá al menos 2 integrantes al grupo.');setView('people');return}app.innerHTML=`<div class="content"><button class="back" onclick="setView('home')">← Volver</button><section class="hero"><div class="eyebrow">Nueva juntada</div><h1>🍻 Armemos la cuenta</h1><p>Después RUSH SPLIT se ocupa del resto.</p></section><div class="card"><div class="form"><div class="field"><label>Nombre</label><input id="gName" placeholder="Ej: Asado en casa de Gino"/></div><div class="field"><label>Fecha</label><input id="gDate" type="date" value="${new Date().toISOString().slice(0,10)}"/></div><div class="field"><label>¿Quiénes participaron?</label><div class="people-grid" id="gPeople">${data.group.people.map(p=>`<button class="person-chip" data-id="${p.id}" onclick="toggleChip(this)">👤 ${escapeHtml(p.name)}</button>`).join('')}</div></div><button class="big-btn" onclick="createGathering()">CONTINUAR →</button></div></div></div>`}
 function toggleChip(el){el.classList.toggle('selected')}
 function createGathering(){const name=document.getElementById('gName').value.trim()||'Juntada RUSH';const date=document.getElementById('gDate').value;const participants=[...document.querySelectorAll('#gPeople .selected')].map(x=>x.dataset.id);if(participants.length<2){alert('Elegí al menos 2 participantes.');return}const g={id:uid('g'),name,date,participants,expenses:[],status:'pending',emoji:'🍻'};data.gatherings.push(g);saveData(data);openGathering(g.id)}

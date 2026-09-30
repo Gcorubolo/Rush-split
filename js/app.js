@@ -44,6 +44,7 @@ const fmtDate=d=>new Date(d).toLocaleDateString('es-AR',{day:'2-digit',month:'2-
 function setView(v){currentView=v;currentGatheringId=null;render()}
 
 document.addEventListener('click',e=>{const btn=e.target.closest('.nav-item');if(btn){e.preventDefault();setView(btn.dataset.view)}});
+
 function render() {
     document
         .querySelectorAll('.nav-item')
@@ -65,6 +66,9 @@ function render() {
     } else if (currentView === 'people') {
         renderPeople();
     }
+    else if (currentView === 'activity') {
+    renderActivity();
+}
 }
 function shell(content){app.innerHTML=`<div class="content">${content}</div>`}
 function renderHome() {
@@ -465,7 +469,6 @@ function parseMoney(v){
   const n=Number(normalized.replace(/[^0-9.-]/g,''));
   return Number.isFinite(n)?Math.round(n*100):0;
 }
-
 async function renderGroupDashboard() {
     const group = window.supabaseData?.currentGroup;
 
@@ -532,7 +535,7 @@ async function renderGroupDashboard() {
             ? gatherings.map(gathering => `
                 <div
                     class="history-item"
-                    onclick="openGathering('${gathering.id}')"
+                    onclick="openActivity('${gathering.id}')"
                     style="cursor:pointer"
                 >
                     <div class="history-emoji">
@@ -596,6 +599,97 @@ async function renderGroupDashboard() {
         </button>
     `);
 }
+
+async function renderActivity() {
+    const activityId = window.supabaseData?.currentActivityId;
+
+    if (!activityId) {
+        setView('group');
+        return;
+    }
+
+    const { data: activity, error } = await supabaseClient
+        .from('gatherings')
+        .select('*')
+        .eq('id', activityId)
+        .single();
+
+    if (error) {
+        console.error('Error cargando actividad:', error);
+        alert('No se pudo cargar la actividad.');
+        return;
+    }
+
+    window.supabaseData.currentActivity = activity;
+
+    shell(`
+        <section class="hero">
+            <div class="eyebrow">
+                ${escapeHtml(activity.category)}
+            </div>
+
+            <h1>
+                ${escapeHtml(activity.name)}
+            </h1>
+
+            <p>
+                ${escapeHtml(activity.date)}
+                ${activity.location
+                    ? ` · ${escapeHtml(activity.location)}`
+                    : ''
+                }
+            </p>
+        </section>
+
+        <div class="card">
+            <div class="section-title">
+                <h2>💰 Resumen</h2>
+            </div>
+
+            <div class="empty">
+                Acá vamos a mostrar los balances de esta actividad.
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="section-title">
+                <h2>💳 Gastos</h2>
+            </div>
+
+            <div class="empty">
+                Todavía no hay gastos cargados.
+            </div>
+        </div>
+
+        <button
+            class="big-btn"
+            onclick="addExpenseToActivity()"
+        >
+            ＋ AGREGAR GASTO
+        </button>
+
+        <button
+            class="back"
+            onclick="setView('group')"
+            style="width:100%; margin-top:12px"
+        >
+            ← Volver al grupo
+        </button>
+    `);
+}
+
+function openActivity(activityId) {
+    window.supabaseData.currentActivityId = activityId;
+
+    console.log(
+        '📅 Actividad seleccionada:',
+        activityId
+    );
+
+    currentView = 'activity';
+    render();
+}
+
 
 function saveExpense(){const g=data.gatherings.find(x=>x.id===currentGatheringId);const name=document.getElementById('eName').value.trim()||'Gasto';const amount=parseMoney(document.getElementById('eAmount').value);const payer=document.getElementById('ePayer').value;const participants=[...document.querySelectorAll('#ePeople .selected')].map(x=>x.dataset.id);const method=document.querySelector('.split-option.active').dataset.method;if(!amount||participants.length<1){alert('Completá monto y participantes.');return}const values={};document.querySelectorAll('.custom-value').forEach(x=>values[x.dataset.person]=method==='percent'?Number(x.value||0):parseMoney(x.value));if(method==='percent'){const total=participants.reduce((s,p)=>s+(values[p]||0),0);if(Math.abs(total-100)>0.01){alert('Los porcentajes deben sumar 100%.');return}}if(method==='amount'){const total=participants.reduce((s,p)=>s+(values[p]||0),0);if(total!==amount){alert(`Los montos deben sumar ${formatMoney(amount)}.`);return}}g.expenses.push({id:uid('e'),name,type:document.getElementById('eType').value,amount,payer,participants,method,values});saveData(data);renderGathering()}
 function showResult(){const g=data.gatherings.find(x=>x.id===currentGatheringId);const balances=calculateBalances(g);const transfers=simplifyTransfers(balances);const total=g.expenses.reduce((s,e)=>s+e.amount,0);g.lastTransfers=transfers;g.status=transfers.length?'pending':'settled';saveData(data);app.innerHTML=`<div class="content"><button class="back" onclick="renderGathering()">← Volver</button><section class="hero"><div class="eyebrow">🧮 RUSH SPLIT hizo las cuentas</div><h1>💸 ¿Quién le paga a quién?</h1><p>${formatMoney(total)} · ${transfers.length} ${transfers.length===1?'pago':'pagos'} para saldar.</p></section><div class="card result-box">${transfers.length?transfers.map(t=>`<div class="transfer"><strong>🔴 ${escapeHtml(personName(t.from))} → 🟢 ${escapeHtml(personName(t.to))}</strong><span>${formatMoney(t.amount)}</span></div>`).join(''):'<div class="success" style="font-weight:800">🟢 Todo saldado.</div>'}</div><button class="big-btn whatsapp" onclick="shareWhatsApp()">📲 COMPARTIR EN WHATSAPP</button><div class="section-title"><h2>Estado</h2></div><div class="card">${Object.entries(balances).map(([id,v])=>`<div class="expense-row"><div class="grow"><strong>${escapeHtml(personName(id))}</strong></div><span class="${v>0?'success':v<0?'danger':''}">${v>0?'Recibe ':v<0?'Paga ':'Está saldado '} ${v?formatMoney(Math.abs(v)):''}</span></div>`).join('')}</div></div>`}

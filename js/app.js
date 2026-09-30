@@ -295,6 +295,27 @@ function recentHistory(){if(!data.gatherings.length)return '<div class="empty">T
 function historyRow(g){const cats=[...new Set(g.expenses.map(e=>emojiFor(e.type)))].join('');return `<div class="history-item" onclick="openGathering('${g.id}')"><div class="history-emoji">${g.emoji||'🍻'}</div><div class="history-main"><strong>${escapeHtml(g.name)}</strong><small>📅 ${fmtDate(g.date)} · 👥 ${g.participants.length} · ${cats||'✨'}</small></div><div class="history-side"><div class="amount">${formatMoney(g.expenses.reduce((s,e)=>s+e.amount,0))}</div><div class="status ${g.status==='settled'?'green':'yellow'}">${g.status==='settled'?'🟢 SALDADA':'🟡 PENDIENTE'}</div></div></div>`}
 function renderHistory(){shell(`<section class="hero"><div class="eyebrow">Todo queda guardado.</div><h1>📜 Historial</h1><p>Juntadas, comidas y cuentas. Sin perder nada.</p></section><div class="card">${data.gatherings.length?data.gatherings.slice().sort((a,b)=>new Date(b.date)-new Date(a.date)).map(historyRow).join(''):'<div class="empty">Todavía no hay historial.</div>'}</div>`)}
 
+async function loadCurrentGroupGatherings() {
+    const groupId = window.supabaseData?.currentGroupId;
+
+    if (!groupId) {
+        return [];
+    }
+
+    const { data, error } = await supabaseClient
+        .from('gatherings')
+        .select('*')
+        .eq('group_id', groupId)
+        .order('date', { ascending: false });
+
+    if (error) {
+        console.error('Error cargando juntadas:', error);
+        return [];
+    }
+
+    return data || [];
+}
+
 async function renderPeople() {
     const groupId = window.supabaseData?.currentGroupId;
 
@@ -445,7 +466,7 @@ function parseMoney(v){
   return Number.isFinite(n)?Math.round(n*100):0;
 }
 
-function renderGroupDashboard() {
+async function renderGroupDashboard() {
     const group = window.supabaseData?.currentGroup;
 
     if (!group) {
@@ -454,6 +475,7 @@ function renderGroupDashboard() {
     }
 
     const members = window.supabaseData?.groupMembers || [];
+    const gatherings = await loadCurrentGroupGatherings();
 
     shell(`
         <section class="hero">
@@ -501,14 +523,62 @@ function renderGroupDashboard() {
         </div>
 
         <div class="card">
-            <div class="section-title">
-                <h2>📅 Juntadas</h2>
-            </div>
+    <div class="section-title">
+        <h2>📅 Juntadas</h2>
+    </div>
 
-            <div class="empty">
-                Todavía vamos a cargar las juntadas de este grupo.
-            </div>
-        </div>
+    ${
+        gatherings.length
+            ? gatherings.map(gathering => `
+                <div
+                    class="history-item"
+                    onclick="openGathering('${gathering.id}')"
+                    style="cursor:pointer"
+                >
+                    <div class="history-emoji">
+                        ${
+                            gathering.category === 'Comida'
+                                ? '🍕'
+                                : gathering.category === 'Bebida'
+                                ? '🍻'
+                                : '📅'
+                        }
+                    </div>
+
+                    <div class="history-main">
+                        <strong>
+                            ${escapeHtml(gathering.name)}
+                        </strong>
+
+                        <small>
+                            ${escapeHtml(gathering.date)}
+                            ·
+                            ${escapeHtml(gathering.category)}
+                        </small>
+                    </div>
+
+                    <div class="history-side">
+                        <span>
+                            ${
+                                gathering.status === 'settled'
+                                    ? '🟢 Saldada'
+                                    : '🟡 Pendiente'
+                            }
+                        </span>
+
+                        <span style="font-size:24px">
+                            →
+                        </span>
+                    </div>
+                </div>
+            `).join('')
+            : `
+                <div class="empty">
+                    Todavía no hay juntadas en este grupo.
+                </div>
+            `
+    }
+</div>
 
         <button
             class="big-btn"

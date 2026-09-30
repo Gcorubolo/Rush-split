@@ -188,9 +188,9 @@ function renderGroups() {
         </button>
     `);
 }
+
 function openGroup(groupId) {
     const groups = window.supabaseData?.groups || [];
-
     const group = groups.find(g => g.id === groupId);
 
     if (!group) {
@@ -201,12 +201,13 @@ function openGroup(groupId) {
     window.supabaseData.currentGroup = group;
     window.supabaseData.currentGroupId = group.id;
 
-    console.log('Grupo seleccionado:', group);
+    console.log('🟢 Grupo seleccionado:', group.name);
+    console.log('🆔 currentGroupId:', group.id);
 
     currentView = 'people';
-
     render();
 }
+
 async function createGroup() {
     const name = prompt('¿Cómo se llama el nuevo grupo?');
 

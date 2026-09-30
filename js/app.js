@@ -54,12 +54,14 @@ function render() {
             );
         });
 
-    if (currentView === 'home') {
+        if (currentView === 'home') {
         renderHome();
     } else if (currentView === 'history') {
         renderHistory();
     } else if (currentView === 'groups') {
         renderGroups();
+    } else if (currentView === 'group') {
+        renderGroupDashboard();
     } else if (currentView === 'people') {
         renderPeople();
     }
@@ -202,7 +204,7 @@ function openGroup(groupId) {
     console.log('🟢 Grupo seleccionado:', group.name);
     console.log('🆔 currentGroupId:', group.id);
 
-    currentView = 'people';
+    currentView = 'group';
     render();
 }
 
@@ -424,6 +426,7 @@ async function removePerson(id) {
 
     renderPeople();
 }
+
 function newGathering(){if(data.group.people.length<2){alert('Primero agregá al menos 2 integrantes al grupo.');setView('people');return}app.innerHTML=`<div class="content"><button class="back" onclick="setView('home')">← Volver</button><section class="hero"><div class="eyebrow">Nueva juntada</div><h1>🍻 Armemos la cuenta</h1><p>Después RUSH SPLIT se ocupa del resto.</p></section><div class="card"><div class="form"><div class="field"><label>Nombre</label><input id="gName" placeholder="Ej: Asado en casa de Gino"/></div><div class="field"><label>Fecha</label><input id="gDate" type="date" value="${new Date().toISOString().slice(0,10)}"/></div><div class="field"><label>¿Quiénes participaron?</label><div class="people-grid" id="gPeople">${data.group.people.map(p=>`<button class="person-chip" data-id="${p.id}" onclick="toggleChip(this)">👤 ${escapeHtml(p.name)}</button>`).join('')}</div></div><button class="big-btn" onclick="createGathering()">CONTINUAR →</button></div></div></div>`}
 function toggleChip(el){el.classList.toggle('selected')}
 function createGathering(){const name=document.getElementById('gName').value.trim()||'Juntada RUSH';const date=document.getElementById('gDate').value;const participants=[...document.querySelectorAll('#gPeople .selected')].map(x=>x.dataset.id);if(participants.length<2){alert('Elegí al menos 2 participantes.');return}const g={id:uid('g'),name,date,participants,expenses:[],status:'pending',emoji:'🍻'};data.gatherings.push(g);saveData(data);openGathering(g.id)}
@@ -441,6 +444,89 @@ function parseMoney(v){
   const n=Number(normalized.replace(/[^0-9.-]/g,''));
   return Number.isFinite(n)?Math.round(n*100):0;
 }
+
+function renderGroupDashboard() {
+    const group = window.supabaseData?.currentGroup;
+
+    if (!group) {
+        setView('groups');
+        return;
+    }
+
+    const members = window.supabaseData?.groupMembers || [];
+
+    shell(`
+        <section class="hero">
+            <div class="eyebrow">Grupo seleccionado</div>
+
+            <h1>🍻 ${escapeHtml(group.name)}</h1>
+
+            <p>
+                Organizá las juntadas, gastos y cuentas de este grupo.
+            </p>
+        </section>
+
+        <div class="card">
+            <div class="section-title">
+                <h2>💰 Resumen</h2>
+            </div>
+
+            <div class="empty">
+                Acá vamos a mostrar tu balance y quién debe a quién.
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="section-title">
+                <h2>👥 Integrantes</h2>
+                <button
+                    class="back"
+                    onclick="renderPeople()"
+                >
+                    Administrar →
+                </button>
+            </div>
+
+            <div class="people-preview">
+                ${
+                    members.length
+                        ? members.map(member => `
+                            <span class="tag">
+                                👤 ${escapeHtml(member.display_name)}
+                            </span>
+                        `).join('')
+                        : `<div class="empty">Todavía no hay integrantes.</div>`
+                }
+            </div>
+        </div>
+
+        <div class="card">
+            <div class="section-title">
+                <h2>📅 Juntadas</h2>
+            </div>
+
+            <div class="empty">
+                Todavía vamos a cargar las juntadas de este grupo.
+            </div>
+        </div>
+
+        <button
+            class="big-btn"
+            onclick="createGathering()"
+        >
+            ＋ NUEVA JUNTADA
+        </button>
+
+        <button
+            class="back"
+            onclick="setView('groups')"
+            style="width:100%; margin-top:12px"
+        >
+            ← Volver a mis grupos
+        </button>
+    `);
+}
+
 function saveExpense(){const g=data.gatherings.find(x=>x.id===currentGatheringId);const name=document.getElementById('eName').value.trim()||'Gasto';const amount=parseMoney(document.getElementById('eAmount').value);const payer=document.getElementById('ePayer').value;const participants=[...document.querySelectorAll('#ePeople .selected')].map(x=>x.dataset.id);const method=document.querySelector('.split-option.active').dataset.method;if(!amount||participants.length<1){alert('Completá monto y participantes.');return}const values={};document.querySelectorAll('.custom-value').forEach(x=>values[x.dataset.person]=method==='percent'?Number(x.value||0):parseMoney(x.value));if(method==='percent'){const total=participants.reduce((s,p)=>s+(values[p]||0),0);if(Math.abs(total-100)>0.01){alert('Los porcentajes deben sumar 100%.');return}}if(method==='amount'){const total=participants.reduce((s,p)=>s+(values[p]||0),0);if(total!==amount){alert(`Los montos deben sumar ${formatMoney(amount)}.`);return}}g.expenses.push({id:uid('e'),name,type:document.getElementById('eType').value,amount,payer,participants,method,values});saveData(data);renderGathering()}
 function showResult(){const g=data.gatherings.find(x=>x.id===currentGatheringId);const balances=calculateBalances(g);const transfers=simplifyTransfers(balances);const total=g.expenses.reduce((s,e)=>s+e.amount,0);g.lastTransfers=transfers;g.status=transfers.length?'pending':'settled';saveData(data);app.innerHTML=`<div class="content"><button class="back" onclick="renderGathering()">← Volver</button><section class="hero"><div class="eyebrow">🧮 RUSH SPLIT hizo las cuentas</div><h1>💸 ¿Quién le paga a quién?</h1><p>${formatMoney(total)} · ${transfers.length} ${transfers.length===1?'pago':'pagos'} para saldar.</p></section><div class="card result-box">${transfers.length?transfers.map(t=>`<div class="transfer"><strong>🔴 ${escapeHtml(personName(t.from))} → 🟢 ${escapeHtml(personName(t.to))}</strong><span>${formatMoney(t.amount)}</span></div>`).join(''):'<div class="success" style="font-weight:800">🟢 Todo saldado.</div>'}</div><button class="big-btn whatsapp" onclick="shareWhatsApp()">📲 COMPARTIR EN WHATSAPP</button><div class="section-title"><h2>Estado</h2></div><div class="card">${Object.entries(balances).map(([id,v])=>`<div class="expense-row"><div class="grow"><strong>${escapeHtml(personName(id))}</strong></div><span class="${v>0?'success':v<0?'danger':''}">${v>0?'Recibe ':v<0?'Paga ':'Está saldado '} ${v?formatMoney(Math.abs(v)):''}</span></div>`).join('')}</div></div>`}
 function shareWhatsApp(){const g=data.gatherings.find(x=>x.id===currentGatheringId);const transfers=g.lastTransfers||simplifyTransfers(calculateBalances(g));const total=g.expenses.reduce((s,e)=>s+e.amount,0);const cats=[...new Set(g.expenses.map(e=>emojiFor(e.type)))].join('');let text=`🥩 RUSH SPLIT — ${g.name}\n\n💰 Total: ${formatMoney(total)}\n${cats}\n\n💸 Para saldar:\n\n`;text+=transfers.length?transfers.map(t=>`${personName(t.from)} → ${personName(t.to)}: ${formatMoney(t.amount)}`).join('\n'):'🟢 Todo saldado';text+='\n\n🟢 Con estos pagos queda todo saldado.\n\n🥩 RUSH SPLIT';window.location.href='https://wa.me/?text='+encodeURIComponent(text)}

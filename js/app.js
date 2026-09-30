@@ -30,15 +30,6 @@ async function checkAuth() {
         groupMembers
     };
 
-        // Por ahora guardamos estos datos temporalmente
-        // para que la interfaz siga funcionando mientras
-        // hacemos la migración completa desde localStorage.
-        window.supabaseData = {
-            user: session.user,
-            profile,
-            groups
-        };
-
         render();
 
     } catch (error) {

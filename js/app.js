@@ -17,9 +17,7 @@ async function checkAuth() {
         const groups = await getGroups();
         console.log('Grupos cargados:', groups);
 
-        const groupMembers = groups.length
-    ? await getGroupMembers(groups[0].id)
-    : [];
+        const groupMembers = [];
 
     console.log('Miembros cargados:', groupMembers);
     

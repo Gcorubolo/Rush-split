@@ -112,7 +112,42 @@ function renderPeople() {
         </button>
     `);
 }
-function addPerson(){const input=document.getElementById('newPerson');const name=input?.value.trim();if(!name)return;data.group.people.push({id:uid('p'),name});saveData(data);renderPeople()}
+async function addPerson() {
+    const input = document.getElementById('newPerson');
+    const name = input?.value.trim();
+
+    if (!name) return;
+
+    const groups = window.supabaseData?.groups || [];
+
+    if (!groups.length) {
+        alert('No se encontró el grupo.');
+        return;
+    }
+
+    const groupId = groups[0].id;
+
+    const { data: newMember, error } = await supabaseClient
+        .from('group_members')
+        .insert({
+            group_id: groupId,
+            display_name: name
+        })
+        .select()
+        .single();
+
+    if (error) {
+        console.error('Error agregando integrante:', error);
+        alert('No se pudo agregar el integrante.');
+        return;
+    }
+
+    console.log('Integrante agregado:', newMember);
+
+    window.supabaseData.groupMembers = await getGroupMembers(groupId);
+
+    renderPeople();
+}
 function removePerson(id){if(data.gatherings.some(g=>g.participants.includes(id))){alert('No se puede eliminar porque participa en una juntada guardada.');return}data.group.people=data.group.people.filter(p=>p.id!==id);saveData(data);renderPeople()}
 function newGathering(){if(data.group.people.length<2){alert('Primero agregá al menos 2 integrantes al grupo.');setView('people');return}app.innerHTML=`<div class="content"><button class="back" onclick="setView('home')">← Volver</button><section class="hero"><div class="eyebrow">Nueva juntada</div><h1>🍻 Armemos la cuenta</h1><p>Después RUSH SPLIT se ocupa del resto.</p></section><div class="card"><div class="form"><div class="field"><label>Nombre</label><input id="gName" placeholder="Ej: Asado en casa de Gino"/></div><div class="field"><label>Fecha</label><input id="gDate" type="date" value="${new Date().toISOString().slice(0,10)}"/></div><div class="field"><label>¿Quiénes participaron?</label><div class="people-grid" id="gPeople">${data.group.people.map(p=>`<button class="person-chip" data-id="${p.id}" onclick="toggleChip(this)">👤 ${escapeHtml(p.name)}</button>`).join('')}</div></div><button class="big-btn" onclick="createGathering()">CONTINUAR →</button></div></div></div>`}
 function toggleChip(el){el.classList.toggle('selected')}

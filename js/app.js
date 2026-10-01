@@ -620,6 +620,10 @@ async function renderActivity() {
         return;
     }
 
+    const expenses = await getExpenses(activityId);
+
+    console.log('💳 Gastos de la actividad:', expenses);
+
     window.supabaseData.currentActivity = activity;
 
     shell(`
@@ -652,14 +656,36 @@ async function renderActivity() {
         </div>
 
         <div class="card">
-            <div class="section-title">
-                <h2>💳 Gastos</h2>
-            </div>
+    <div class="section-title">
+        <h2>💳 Gastos</h2>
+    </div>
 
-            <div class="empty">
-                Todavía no hay gastos cargados.
-            </div>
-        </div>
+    ${
+        expenses.length
+            ? expenses.map(expense => `
+                <div class="history-item">
+                    <div class="history-emoji">
+                        💳
+                    </div>
+
+                    <div class="history-main">
+                        <strong>
+                            ${escapeHtml(expense.description)}
+                        </strong>
+
+                        <small>
+                            $${Number(expense.amount_cents / 100).toLocaleString('es-AR')}
+                        </small>
+                    </div>
+                </div>
+            `).join('')
+            : `
+                <div class="empty">
+                    Todavía no hay gastos cargados.
+                </div>
+            `
+    }
+</div>
 
         <button
             class="big-btn"

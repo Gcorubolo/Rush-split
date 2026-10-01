@@ -621,7 +621,9 @@ async function renderActivity() {
     }
 
     const expenses = await getExpenses(activityId);
+    const settlements = await getSettlements(activityId);
 
+    console.log('💸 Liquidaciones:', settlements);
     console.log('💳 Gastos de la actividad:', expenses);
 
     window.supabaseData.currentActivity = activity;
@@ -660,6 +662,52 @@ async function renderActivity() {
         <h2>💳 Gastos</h2>
     </div>
 
+    <div class="card">
+    <div class="section-title">
+        <h2>💸 ¿Quién le debe a quién?</h2>
+    </div>
+
+    ${
+        settlements.length
+            ? settlements.map(settlement => `
+                <div class="history-item">
+                    <div class="history-emoji">
+                        💸
+                    </div>
+
+                    <div class="history-main">
+                        <strong>
+                            ${escapeHtml(settlement.from_member)}
+                            → 
+                            ${escapeHtml(settlement.to_member)}
+                        </strong>
+
+                        <small>
+                            ${
+                                settlement.status === 'paid'
+                                    ? '🟢 Pagado'
+                                    : '🟡 Pendiente'
+                            }
+                        </small>
+                    </div>
+
+                    <div class="history-side">
+                        <strong>
+                            $${Number(
+                                settlement.amount_cents / 100
+                            ).toLocaleString('es-AR')}
+                        </strong>
+                    </div>
+                </div>
+            `).join('')
+            : `
+                <div class="empty">
+                    No hay pagos pendientes.
+                </div>
+            `
+    }
+</div>
+    
     ${
         expenses.length
             ? expenses.map(expense => `

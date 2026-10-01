@@ -762,7 +762,10 @@ async function renderActivity() {
 
     const members = await getGatheringMembers(activityId);
 
-    console.log('👥 Participantes de la actividad:', members);
+    console.log(
+    '👥 PARTICIPANTES:',
+    JSON.stringify(members, null, 2)    
+        );
 
     shell(`
         <section class="hero">

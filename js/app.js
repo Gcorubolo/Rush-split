@@ -752,8 +752,105 @@ async function renderActivity() {
     `);
 }
 
-function addExpenseToActivity() {
-    alert('Próximamente: agregar gasto 😎');
+    async function addExpenseToActivity() {
+    const activityId = window.supabaseData?.currentActivityId;
+
+    if (!activityId) {
+        alert('No hay una actividad seleccionada.');
+        return;
+    }
+
+    const members = await getGatheringMembers(activityId);
+
+    console.log('👥 Participantes de la actividad:', members);
+
+    shell(`
+        <section class="hero">
+            <div class="eyebrow">Nuevo gasto</div>
+            <h1>➕ Agregar gasto</h1>
+            <p>Cargá qué pasó y RUSH SPLIT se encarga del resto.</p>
+        </section>
+
+        <div class="card">
+
+            <div class="form-group">
+                <label>Descripción</label>
+                <input
+                    type="text"
+                    id="expenseDescription"
+                    placeholder="Ej: Pizza"
+                />
+            </div>
+
+            <div class="form-group">
+                <label>Monto</label>
+                <input
+                    type="text"
+                    id="expenseAmount"
+                    inputmode="decimal"
+                    placeholder="$ 40.000"
+                />
+            </div>
+
+            <div class="form-group">
+                <label>¿Quién pagó?</label>
+
+                <select id="expensePayer">
+                    ${
+                        members.map(member => `
+                            <option value="${member.group_member_id}">
+                                ${escapeHtml(member.display_name)}
+                            </option>
+                        `).join('')
+                    }
+                </select>
+            </div>
+
+            <div class="form-group">
+                <label>¿Quiénes participan?</label>
+
+                <div style="margin-top:10px;">
+                    ${
+                        members.map(member => `
+                            <label
+                                style="
+                                    display:flex;
+                                    align-items:center;
+                                    gap:10px;
+                                    margin-bottom:10px;
+                                "
+                            >
+                                <input
+                                    type="checkbox"
+                                    class="expense-participant"
+                                    value="${member.group_member_id}"
+                                    checked
+                                />
+
+                                ${escapeHtml(member.display_name)}
+                            </label>
+                        `).join('')
+                    }
+                </div>
+            </div>
+
+        </div>
+
+        <button
+            class="big-btn"
+            onclick="saveExpense()"
+        >
+            GUARDAR GASTO
+        </button>
+
+        <button
+            class="back"
+            onclick="renderActivity()"
+            style="width:100%; margin-top:12px"
+        >
+            ← Cancelar
+        </button>
+    `);
 }
 
 function openActivity(activityId) {

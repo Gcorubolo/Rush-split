@@ -134,7 +134,21 @@ async function getExpenseParticipants(expenseId) {
 async function getSettlements(gatheringId) {
     const { data, error } = await supabaseClient
         .from('settlements')
-        .select('*')
+        .select(`
+            id,
+            gathering_id,
+            amount_cents,
+            status,
+            paid_at,
+            from_member:group_members!settlements_from_member_fkey (
+                id,
+                display_name
+            ),
+            to_member:group_members!settlements_to_member_fkey (
+                id,
+                display_name
+            )
+        `)
         .eq('gathering_id', gatheringId);
 
     if (error) {

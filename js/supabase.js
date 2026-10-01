@@ -87,25 +87,57 @@ async function getGatherings(groupId) {
 
 
 async function getGatheringMembers(gatheringId) {
-    const { data, error } = await supabaseClient
-        .from('gathering_members')
-        .select(`
-            id,
-            gathering_id,
-            group_member_id,
-            group_member:group_members (
-                id,
-                display_name
-            )
-        `)
-        .eq('gathering_id', gatheringId);
+    // 1. Obtenemos los participantes de la actividad
+    const { data: gatheringMembers, error: gatheringError } =
+        await supabaseClient
+            .from('gathering_members')
+            .select('id, gathering_id, group_member_id')
+            .eq('gathering_id', gatheringId);
 
-    if (error) {
-        console.error('Error obteniendo participantes:', error);
-        throw error;
+    if (gatheringError) {
+        console.error(
+            'Error obteniendo participantes:',
+            gatheringError
+        );
+        throw gatheringError;
     }
 
-    return data || [];
+    if (!gatheringMembers?.length) {
+        return [];
+    }
+
+    // 2. Obtenemos los integrantes reales del grupo
+    const memberIds = gatheringMembers.map(
+        member => member.group_member_id
+    );
+
+    const { data: groupMembers, error: groupError } =
+        await supabaseClient
+            .from('group_members')
+            .select('id, display_name')
+            .in('id', memberIds);
+
+    if (groupError) {
+        console.error(
+            'Error obteniendo nombres:',
+            groupError
+        );
+        throw groupError;
+    }
+
+    // 3. Combinamos ambas cosas
+    return gatheringMembers.map(member => {
+        const groupMember = groupMembers.find(
+            gm => gm.id === member.group_member_id
+        );
+
+        return {
+            id: member.id,
+            gathering_id: member.gathering_id,
+            group_member_id: member.group_member_id,
+            display_name: groupMember?.display_name || 'Sin nombre'
+        };
+    });
 }
 
 

@@ -857,47 +857,88 @@ async function renderActivity() {
 }
 
 async function saveExpense() {
-    const activityId = window.supabaseData?.currentActivityId;
+    const activityId =
+        window.supabaseData?.currentActivityId;
 
     if (!activityId) {
         alert('No hay una actividad seleccionada.');
         return;
     }
 
+    // ==============================
+    // 1. LEER CAMPOS DEL FORMULARIO
+    // ==============================
+
     const descriptionInput =
-    document.getElementById('expenseDescription');
+        document.getElementById('expenseDescription');
 
-const amountInput =
-    document.getElementById('expenseAmount');
+    const amountInput =
+        document.getElementById('expenseAmount');
 
-const payerInput =
-    document.getElementById('expensePayer');
+    const payerInput =
+        document.getElementById('expensePayer');
 
-if (!descriptionInput || !amountInput || !payerInput) {
-    console.error('❌ No se encontraron los campos del formulario:', {
-        descriptionInput,
-        amountInput,
-        payerInput
-    });
+    if (
+        !descriptionInput ||
+        !amountInput ||
+        !payerInput
+    ) {
+        console.error(
+            '❌ No se encontraron todos los campos:',
+            {
+                descriptionInput,
+                amountInput,
+                payerInput
+            }
+        );
 
-    alert('Falta un campo del formulario.');
-    return;
-}
+        alert(
+            'No se encontraron todos los campos del formulario.'
+        );
 
-const description = descriptionInput.value.trim();
-const amountText = amountInput.value.trim();
-const payer = payerInput.value;
+        return;
+    }
+
+    const description =
+        descriptionInput.value.trim();
+
+    const amountText =
+        amountInput.value.trim();
+
+    const payer =
+        payerInput.value;
 
     const participants = [
-        ...document.querySelectorAll('.expense-participant:checked')
+        ...document.querySelectorAll(
+            '.expense-participant:checked'
+        )
     ].map(input => input.value);
+
+    // ==============================
+    // 2. MOSTRAR DATOS EN CONSOLA
+    // ==============================
+
+    console.log(
+        '🧪 DATOS DEL FORMULARIO:',
+        {
+            activityId,
+            description,
+            amountText,
+            payer,
+            participants
+        }
+    );
+
+    // ==============================
+    // 3. VALIDACIONES
+    // ==============================
 
     if (!description) {
         alert('Ingresá una descripción.');
         return;
     }
 
-    if (!amountInput) {
+    if (!amountText) {
         alert('Ingresá un monto.');
         return;
     }
@@ -908,77 +949,109 @@ const payer = payerInput.value;
     }
 
     if (!participants.length) {
-        alert('Seleccioná al menos un participante.');
+        alert(
+            'Seleccioná al menos un participante.'
+        );
         return;
     }
 
-    // Convertimos el monto a centavos/unidad interna
-    const amount = parseMoney(amountText);
+    // ==============================
+    // 4. CONVERTIR MONTO
+    // ==============================
+
+    const amount =
+        parseMoney(amountText);
 
     if (!amount || amount <= 0) {
         alert('Ingresá un monto válido.');
         return;
     }
 
-    console.log('💳 Guardando gasto:', {
-        activityId,
-        description,
-        amount,
-        payer,
-        participants
-    });
+    console.log(
+        '💰 Monto convertido:',
+        amount
+    );
 
-    // 1️⃣ Crear el gasto
-    const { data: expense, error: expenseError } =
-        await supabaseClient
-            .from('expenses')
-            .insert({
-                gathering_id: activityId,
-                description,
-                amount_cents: amount,
-                paid_by: payer,
-                division_type: 'equal'
-            })
-            .select()
-            .single();
+    // ==============================
+    // 5. CREAR GASTO EN SUPABASE
+    // ==============================
+
+    console.log(
+        '💳 Intentando crear gasto...'
+    );
+
+    const {
+        data: expense,
+        error: expenseError
+    } = await supabaseClient
+        .from('expenses')
+        .insert({
+            gathering_id: activityId,
+            description: description,
+            amount_cents: amount,
+            paid_by: payer,
+            division_type: 'equal'
+        })
+        .select()
+        .single();
 
     if (expenseError) {
         console.error(
-            'Error creando gasto:',
+            '❌ Error creando gasto:',
             expenseError
         );
 
-        alert('No se pudo guardar el gasto.');
+        alert(
+            'No se pudo guardar el gasto.'
+        );
+
         return;
     }
 
-    console.log('✅ Gasto creado:', expense);
-
-    // 2️⃣ Calcular cuánto corresponde a cada participante
-    const baseAmount = Math.floor(
-        amount / participants.length
+    console.log(
+        '✅ Gasto creado:',
+        expense
     );
+
+    // ==============================
+    // 6. CALCULAR PARTE DE CADA UNO
+    // ==============================
+
+    const baseAmount =
+        Math.floor(
+            amount / participants.length
+        );
 
     let remainder =
         amount -
         baseAmount * participants.length;
 
-    const participantRows = participants.map(memberId => {
-        let share = baseAmount;
+    const participantRows =
+        participants.map(memberId => {
 
-        if (remainder > 0) {
-            share += 1;
-            remainder--;
-        }
+            let share = baseAmount;
 
-        return {
-            expense_id: expense.id,
-            group_member_id: memberId,
-            amount_cents: share
-        };
-    });
+            if (remainder > 0) {
+                share += 1;
+                remainder--;
+            }
 
-    // 3️⃣ Guardar las participaciones
+            return {
+                expense_id: expense.id,
+                group_member_id: memberId,
+                amount_cents: share
+            };
+        });
+
+    console.log(
+        '👥 Participaciones:',
+        participantRows
+    );
+
+    // ==============================
+    // 7. GUARDAR PARTICIPANTES
+    // ==============================
+
     const {
         data: savedParticipants,
         error: participantError
@@ -988,18 +1061,23 @@ const payer = payerInput.value;
         .select();
 
     if (participantError) {
+
         console.error(
-            'Error guardando participantes:',
+            '❌ Error guardando participantes:',
             participantError
         );
 
-        // Si falla esta parte, eliminamos el gasto creado
+        // Si falló el segundo INSERT,
+        // eliminamos el gasto creado.
         await supabaseClient
             .from('expenses')
             .delete()
             .eq('id', expense.id);
 
-        alert('No se pudieron guardar los participantes.');
+        alert(
+            'No se pudieron guardar los participantes.'
+        );
+
         return;
     }
 
@@ -1008,9 +1086,15 @@ const payer = payerInput.value;
         savedParticipants
     );
 
-    alert('¡Gasto guardado! 🎉');
+    // ==============================
+    // 8. VOLVER A LA ACTIVIDAD
+    // ==============================
 
-    renderActivity();
+    alert(
+        '¡Gasto guardado! 🎉'
+    );
+
+    await renderActivity();
 }
 
 function openActivity(activityId) {

@@ -864,14 +864,29 @@ async function saveExpense() {
         return;
     }
 
-    const description =
-        document.getElementById('expenseDescription')?.value.trim();
+    const descriptionInput =
+    document.getElementById('expenseDescription');
 
-    const amountInput =
-        document.getElementById('expenseAmount')?.value.trim();
+const amountInput =
+    document.getElementById('expenseAmount');
 
-    const payer =
-        document.getElementById('expensePayer')?.value;
+const payerInput =
+    document.getElementById('expensePayer');
+
+if (!descriptionInput || !amountInput || !payerInput) {
+    console.error('❌ No se encontraron los campos del formulario:', {
+        descriptionInput,
+        amountInput,
+        payerInput
+    });
+
+    alert('Falta un campo del formulario.');
+    return;
+}
+
+const description = descriptionInput.value.trim();
+const amountText = amountInput.value.trim();
+const payer = payerInput.value;
 
     const participants = [
         ...document.querySelectorAll('.expense-participant:checked')
@@ -898,7 +913,7 @@ async function saveExpense() {
     }
 
     // Convertimos el monto a centavos/unidad interna
-    const amount = parseMoney(amountInput);
+    const amount = parseMoney(amountText);
 
     if (!amount || amount <= 0) {
         alert('Ingresá un monto válido.');

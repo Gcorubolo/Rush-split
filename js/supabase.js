@@ -89,7 +89,15 @@ async function getGatherings(groupId) {
 async function getGatheringMembers(gatheringId) {
     const { data, error } = await supabaseClient
         .from('gathering_members')
-        .select('*')
+        .select(`
+            id,
+            gathering_id,
+            group_member_id,
+            group_member:group_members (
+                id,
+                display_name
+            )
+        `)
         .eq('gathering_id', gatheringId);
 
     if (error) {
@@ -97,7 +105,7 @@ async function getGatheringMembers(gatheringId) {
         throw error;
     }
 
-    return data;
+    return data || [];
 }
 
 

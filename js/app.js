@@ -856,6 +856,148 @@ async function renderActivity() {
     `);
 }
 
+async function saveExpense() {
+    const activityId = window.supabaseData?.currentActivityId;
+
+    if (!activityId) {
+        alert('No hay una actividad seleccionada.');
+        return;
+    }
+
+    const description =
+        document.getElementById('expenseDescription')?.value.trim();
+
+    const amountInput =
+        document.getElementById('expenseAmount')?.value.trim();
+
+    const payer =
+        document.getElementById('expensePayer')?.value;
+
+    const participants = [
+        ...document.querySelectorAll('.expense-participant:checked')
+    ].map(input => input.value);
+
+    if (!description) {
+        alert('Ingresá una descripción.');
+        return;
+    }
+
+    if (!amountInput) {
+        alert('Ingresá un monto.');
+        return;
+    }
+
+    if (!payer) {
+        alert('Seleccioná quién pagó.');
+        return;
+    }
+
+    if (!participants.length) {
+        alert('Seleccioná al menos un participante.');
+        return;
+    }
+
+    // Convertimos el monto a centavos/unidad interna
+    const amount = parseMoney(amountInput);
+
+    if (!amount || amount <= 0) {
+        alert('Ingresá un monto válido.');
+        return;
+    }
+
+    console.log('💳 Guardando gasto:', {
+        activityId,
+        description,
+        amount,
+        payer,
+        participants
+    });
+
+    // 1️⃣ Crear el gasto
+    const { data: expense, error: expenseError } =
+        await supabaseClient
+            .from('expenses')
+            .insert({
+                gathering_id: activityId,
+                description,
+                amount_cents: amount,
+                paid_by: payer,
+                division_type: 'equal'
+            })
+            .select()
+            .single();
+
+    if (expenseError) {
+        console.error(
+            'Error creando gasto:',
+            expenseError
+        );
+
+        alert('No se pudo guardar el gasto.');
+        return;
+    }
+
+    console.log('✅ Gasto creado:', expense);
+
+    // 2️⃣ Calcular cuánto corresponde a cada participante
+    const baseAmount = Math.floor(
+        amount / participants.length
+    );
+
+    let remainder =
+        amount -
+        baseAmount * participants.length;
+
+    const participantRows = participants.map(memberId => {
+        let share = baseAmount;
+
+        if (remainder > 0) {
+            share += 1;
+            remainder--;
+        }
+
+        return {
+            expense_id: expense.id,
+            group_member_id: memberId,
+            amount_cents: share
+        };
+    });
+
+    // 3️⃣ Guardar las participaciones
+    const {
+        data: savedParticipants,
+        error: participantError
+    } = await supabaseClient
+        .from('expense_participants')
+        .insert(participantRows)
+        .select();
+
+    if (participantError) {
+        console.error(
+            'Error guardando participantes:',
+            participantError
+        );
+
+        // Si falla esta parte, eliminamos el gasto creado
+        await supabaseClient
+            .from('expenses')
+            .delete()
+            .eq('id', expense.id);
+
+        alert('No se pudieron guardar los participantes.');
+        return;
+    }
+
+    console.log(
+        '✅ Participantes guardados:',
+        savedParticipants
+    );
+
+    alert('¡Gasto guardado! 🎉');
+
+    renderActivity();
+}
+
 function openActivity(activityId) {
     window.supabaseData.currentActivityId = activityId;
 

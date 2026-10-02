@@ -1133,16 +1133,14 @@ async function recalculateSettlements(activityId) {
             await getGatheringMembers(activityId);
 
         console.log(
-            '👥 PARTICIPANTES DE LA ACTIVIDAD:',
+            '👥 PARTICIPANTES:',
             gatheringMembers
         );
 
         if (!gatheringMembers.length) {
-
             console.warn(
                 '⚠️ La actividad no tiene participantes.'
             );
-
             return;
         }
 
@@ -1162,13 +1160,8 @@ async function recalculateSettlements(activityId) {
                 )
             );
 
-        console.log(
-            '⚖️ BALANCES INICIALES:',
-            balances
-        );
-
         // ==========================================
-        // 4. PROCESAR CADA GASTO
+        // 4. PROCESAR GASTOS
         // ==========================================
 
         for (const expense of expenses) {
@@ -1188,58 +1181,101 @@ async function recalculateSettlements(activityId) {
                     expense.id
                 );
 
-            console.log(
-                '👥 PARTICIPACIONES DEL GASTO:',
-                participants
-            );
-
-            // Cada participante debe su parte
             for (const participant of participants) {
 
                 balances[
                     participant.group_member_id
                 ] -=
                     participant.amount_cents;
-
             }
         }
 
         console.log(
-            '⚖️ BALANCES FINALES:',
+            '⚖️ BALANCES DESPUÉS DE GASTOS:',
             balances
         );
 
         // ==========================================
-        // 5. SIMPLIFICAR TRANSFERENCIAS
+        // 5. OBTENER PAGOS YA CONFIRMADOS
+        // ==========================================
+
+        const {
+            data: paidSettlements,
+            error: paidError
+        } = await supabaseClient
+            .from('settlements')
+            .select('*')
+            .eq('gathering_id', activityId)
+            .eq('status', 'paid');
+
+        if (paidError) {
+
+            console.error(
+                '❌ ERROR OBTENIENDO PAGOS CONFIRMADOS:',
+                paidError
+            );
+
+            throw paidError;
+        }
+
+        console.log(
+            '🟢 PAGOS CONFIRMADOS:',
+            paidSettlements
+        );
+
+        // ==========================================
+        // 6. APLICAR PAGOS CONFIRMADOS
+        // ==========================================
+
+        for (const payment of paidSettlements) {
+
+            console.log(
+                '💸 APLICANDO PAGO CONFIRMADO:',
+                payment
+            );
+
+            // El deudor reduce su deuda
+            balances[payment.from_member] +=
+                payment.amount_cents;
+
+            // El acreedor reduce lo que todavía tiene
+            balances[payment.to_member] -=
+                payment.amount_cents;
+        }
+
+        console.log(
+            '⚖️ BALANCES DESPUÉS DE PAGOS CONFIRMADOS:',
+            balances
+        );
+
+        // ==========================================
+        // 7. CALCULAR NUEVAS OBLIGACIONES
         // ==========================================
 
         const transfers =
             simplifyTransfers(balances);
 
         console.log(
-            '💸 TRANSFERENCIAS CALCULADAS:',
+            '💸 NUEVAS TRANSFERENCIAS:',
             transfers
         );
 
         // ==========================================
-        // 6. BORRAR LIQUIDACIONES ANTERIORES
+        // 8. BORRAR SOLO PENDING ANTERIORES
         // ==========================================
-
-        console.log(
-            '🗑️ Eliminando settlements anteriores...'
-        );
 
         const {
             error: deleteError
         } = await supabaseClient
             .from('settlements')
             .delete()
-            .eq('gathering_id', activityId);
+            .eq('gathering_id', activityId)
+            .eq('status', 'pending');
 
         if (deleteError) {
 
             console.error(
-                '❌ ERROR BORRANDO SETTLEMENTS:',
+                '❌ ERROR BORRANDO PENDING:',
                 deleteError
             );
 
@@ -1247,24 +1283,24 @@ async function recalculateSettlements(activityId) {
         }
 
         console.log(
-            '✅ Settlements anteriores eliminados.'
+            '🗑️ PENDING ANTERIORES ELIMINADOS.'
         );
 
         // ==========================================
-        // 7. SI NO HAY DEUDAS
+        // 9. SI NO QUEDA NADA POR PAGAR
         // ==========================================
 
         if (!transfers.length) {
 
             console.log(
-                '✅ LA ACTIVIDAD ESTÁ COMPLETAMENTE EQUILIBRADA.'
+                '✅ ACTIVIDAD COMPLETAMENTE EQUILIBRADA.'
             );
 
             return;
         }
 
         // ==========================================
-        // 8. CREAR NUEVAS LIQUIDACIONES
+        // 10. CREAR NUEVOS PENDING
         // ==========================================
 
         const settlementRows =
@@ -1286,7 +1322,7 @@ async function recalculateSettlements(activityId) {
             }));
 
         console.log(
-            '💸 NUEVAS LIQUIDACIONES:',
+            '💸 NUEVOS PENDING:',
             settlementRows
         );
 
@@ -1301,7 +1337,7 @@ async function recalculateSettlements(activityId) {
         if (settlementError) {
 
             console.error(
-                '❌ ERROR CREANDO SETTLEMENTS:',
+                '❌ ERROR CREANDO PENDING:',
                 settlementError
             );
 

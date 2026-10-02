@@ -1097,8 +1097,7 @@ async function saveExpense() {
     // ==============================
 
         console.log(
-        '🔄 Recalculando liquidaciones...'
-    );
+        '🔄 Recalculando liquidaciones...');
     
     await recalculateSettlements(activityId);
     
@@ -1107,6 +1106,181 @@ async function saveExpense() {
     );
     
     await renderActivity();
+}
+
+async function recalculateSettlements(activityId) {
+
+    console.log('🔄 RECalculando liquidaciones para:', activityId);
+
+    try {
+
+        // 1. Obtener todos los gastos
+        const expenses = await getExpenses(activityId);
+
+        console.log('💳 Gastos encontrados:', expenses);
+
+        // 2. Obtener participantes de la actividad
+        const gatheringMembers =
+            await getGatheringMembers(activityId);
+
+        console.log(
+            '👥 Participantes de la actividad:',
+            gatheringMembers
+        );
+
+        if (!gatheringMembers.length) {
+            console.warn(
+                '⚠️ La actividad no tiene participantes.'
+            );
+            return;
+        }
+
+        // 3. Inicializar balances
+        const participantIds =
+            gatheringMembers.map(
+                member => member.group_member_id
+            );
+
+        const balances =
+            Object.fromEntries(
+                participantIds.map(
+                    id => [id, 0]
+                )
+            );
+
+        console.log(
+            '⚖️ Balances iniciales:',
+            balances
+        );
+
+        // 4. Procesar cada gasto
+        for (const expense of expenses) {
+
+            console.log(
+                '💰 Procesando gasto:',
+                expense
+            );
+
+            // El que pagó recibe crédito
+            balances[expense.paid_by] +=
+                expense.amount_cents;
+
+            // Obtener cómo se repartió
+            const participants =
+                await getExpenseParticipants(
+                    expense.id
+                );
+
+            console.log(
+                '👥 Participaciones del gasto:',
+                participants
+            );
+
+            // Cada participante debe su parte
+            for (const participant of participants) {
+
+                balances[
+                    participant.group_member_id
+                ] -= participant.amount_cents;
+
+            }
+        }
+
+        console.log(
+            '⚖️ BALANCES FINALES:',
+            balances
+        );
+
+        // 5. Convertir balances en transferencias
+        const transfers =
+            simplifyTransfers(balances);
+
+        console.log(
+            '💸 TRANSFERENCIAS CALCULADAS:',
+            transfers
+        );
+
+        // 6. Borrar liquidaciones anteriores
+        const {
+            error: deleteError
+        } = await supabaseClient
+            .from('settlements')
+            .delete()
+            .eq('gathering_id', activityId);
+
+        if (deleteError) {
+
+            console.error(
+                '❌ ERROR BORRANDO SETTLEMENTS:',
+                deleteError
+            );
+
+            throw deleteError;
+        }
+
+        // 7. Si nadie debe nada
+        if (!transfers.length) {
+
+            console.log(
+                '✅ La actividad está completamente equilibrada.'
+            );
+
+            return;
+        }
+
+        // 8. Crear nuevas liquidaciones
+        const settlementRows =
+            transfers.map(transfer => ({
+
+                gathering_id: activityId,
+
+                from_member: transfer.from,
+
+                to_member: transfer.to,
+
+                amount_cents: transfer.amount,
+
+                status: 'pending'
+
+            }));
+
+        console.log(
+            '💸 NUEVAS LIQUIDACIONES:',
+            settlementRows
+        );
+
+        const {
+            data: savedSettlements,
+            error: settlementError
+        } = await supabaseClient
+            .from('settlements')
+            .insert(settlementRows)
+            .select();
+
+        if (settlementError) {
+
+            console.error(
+                '❌ ERROR CREANDO SETTLEMENTS:',
+                settlementError
+            );
+
+            throw settlementError;
+        }
+
+        console.log(
+            '✅ LIQUIDACIONES ACTUALIZADAS:',
+            savedSettlements
+        );
+
+    } catch (error) {
+
+        console.error(
+            '❌ ERROR GENERAL RECALCULANDO LIQUIDACIONES:',
+            error
+        );
+
+        throw error;
+    }
 }
 
 function openActivity(activityId) {

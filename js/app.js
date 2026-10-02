@@ -997,9 +997,9 @@ async function saveExpense() {
 
     if (expenseError) {
         console.error(
-            '❌ Error creando gasto:',
-            expenseError
-        );
+        '❌ ERROR COMPLETO DE SUPABASE:',
+        JSON.stringify(expenseError, null, 2)
+    );
 
         alert(
             'No se pudo guardar el gasto.'

@@ -996,17 +996,23 @@ async function saveExpense() {
         .single();
 
     if (expenseError) {
-        console.error(
-        '❌ ERROR COMPLETO DE SUPABASE:',
-        JSON.stringify(expenseError, null, 2)
+
+    console.log('🚨🚨🚨 ERROR SUPABASE 🚨🚨🚨');
+
+    console.log('code:', expenseError.code);
+    console.log('message:', expenseError.message);
+    console.log('details:', expenseError.details);
+    console.log('hint:', expenseError.hint);
+
+    alert(
+        'ERROR SUPABASE:\n\n' +
+        'Code: ' + expenseError.code + '\n' +
+        'Message: ' + expenseError.message + '\n' +
+        'Details: ' + expenseError.details
     );
 
-        alert(
-            'No se pudo guardar el gasto.'
-        );
-
-        return;
-    }
+    return;
+}
 
     console.log(
         '✅ Gasto creado:',

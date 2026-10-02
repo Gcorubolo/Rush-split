@@ -36,7 +36,7 @@ async function checkAuth() {
 }
 
 
-let data=loadData(); let currentView='home'; let currentGatheringId=null;
+let data=loadData(); let currentView='home'; let currentGatheringId=null; let savingExpense = false;
 const app=document.getElementById('app');
 const personName=id=>data.group.people.find(p=>p.id===id)?.name||'Persona';
 const emojiFor=type=>({food:'🥩',pizza:'🍕',drinks:'🍺',wine:'🍷',dessert:'🍰',snacks:'🍿',transport:'🚕',home:'🏠',ticket:'🎟️',gift:'🎁',supermarket:'🛒',other:'✨'}[type]||'✨');
@@ -840,11 +840,11 @@ async function renderActivity() {
         </div>
 
         <button
-            class="big-btn"
-            onclick="saveExpense()"
-        >
-            GUARDAR GASTO
-        </button>
+        id="saveExpenseBtn"
+        class="big-btn"
+        onclick="saveExpense()">
+        GUARDAR GASTO
+    </button>
 
         <button
             class="back"
@@ -857,248 +857,226 @@ async function renderActivity() {
 }
 
 async function saveExpense() {
-    const activityId =
-        window.supabaseData?.currentActivityId;
-
-    if (!activityId) {
-        alert('No hay una actividad seleccionada.');
+    // 🛡️ Evita múltiples clics mientras se está guardando
+    if (savingExpense) {
+        console.warn('⚠️ Ya hay un gasto siendo guardado.');
         return;
     }
 
-    // ==============================
-    // 1. LEER CAMPOS DEL FORMULARIO
-    // ==============================
+    savingExpense = true;
 
-    const descriptionInput =
-        document.getElementById('expenseDescription');
+    const saveButton = document.getElementById('saveExpenseBtn');
 
-    const amountInput =
-        document.getElementById('expenseAmount');
+    if (saveButton) {
+        saveButton.disabled = true;
+        saveButton.textContent = 'GUARDANDO...';
+    }
 
-    const payerInput =
-        document.getElementById('expensePayer');
+    try {
+        const activityId =
+            window.supabaseData?.currentActivityId;
 
-    if (
-        !descriptionInput ||
-        !amountInput ||
-        !payerInput
-    ) {
-        console.error(
-            '❌ No se encontraron todos los campos:',
-            {
+        if (!activityId) {
+            alert('No hay una actividad seleccionada.');
+            return;
+        }
+
+        // 1. Leer formulario
+        const descriptionInput =
+            document.getElementById('expenseDescription');
+
+        const amountInput =
+            document.getElementById('expenseAmount');
+
+        const payerInput =
+            document.getElementById('expensePayer');
+
+        if (!descriptionInput || !amountInput || !payerInput) {
+            console.error('❌ No se encontraron todos los campos:', {
                 descriptionInput,
                 amountInput,
                 payerInput
-            }
-        );
+            });
 
-        alert(
-            'No se encontraron todos los campos del formulario.'
-        );
+            alert('No se encontraron todos los campos del formulario.');
+            return;
+        }
 
-        return;
-    }
+        const description =
+            descriptionInput.value.trim();
 
-    const description =
-        descriptionInput.value.trim();
+        const amountText =
+            amountInput.value.trim();
 
-    const amountText =
-        amountInput.value.trim();
+        const payer =
+            payerInput.value;
 
-    const payer =
-        payerInput.value;
+        const participants = [
+            ...document.querySelectorAll(
+                '.expense-participant:checked'
+            )
+        ].map(input => input.value);
 
-    const participants = [
-        ...document.querySelectorAll(
-            '.expense-participant:checked'
-        )
-    ].map(input => input.value);
-
-    // ==============================
-    // 2. MOSTRAR DATOS EN CONSOLA
-    // ==============================
-
-    console.log(
-        '🧪 DATOS DEL FORMULARIO:',
-        {
+        console.log('🧪 DATOS DEL FORMULARIO:', {
             activityId,
             description,
             amountText,
             payer,
             participants
-        }
-    );
-
-    // ==============================
-    // 3. VALIDACIONES
-    // ==============================
-
-    if (!description) {
-        alert('Ingresá una descripción.');
-        return;
-    }
-
-    if (!amountText) {
-        alert('Ingresá un monto.');
-        return;
-    }
-
-    if (!payer) {
-        alert('Seleccioná quién pagó.');
-        return;
-    }
-
-    if (!participants.length) {
-        alert(
-            'Seleccioná al menos un participante.'
-        );
-        return;
-    }
-
-    // ==============================
-    // 4. CONVERTIR MONTO
-    // ==============================
-
-    const amount =
-        parseMoney(amountText);
-
-    if (!amount || amount <= 0) {
-        alert('Ingresá un monto válido.');
-        return;
-    }
-
-    console.log(
-        '💰 Monto convertido:',
-        amount
-    );
-
-    // ==============================
-    // 5. CREAR GASTO EN SUPABASE
-    // ==============================
-
-    console.log(
-        '💳 Intentando crear gasto...'
-    );
-
-    const {
-        data: expense,
-        error: expenseError
-    } = await supabaseClient
-        .from('expenses')
-        .insert({
-            gathering_id: activityId,
-            description: description,
-            amount_cents: amount,
-            paid_by: payer,
-            division_type: 'equal'
-        })
-        .select()
-        .single();
-
-    if (expenseError) {
-
-    console.log('🚨🚨🚨 ERROR SUPABASE 🚨🚨🚨');
-
-    console.log('code:', expenseError.code);
-    console.log('message:', expenseError.message);
-    console.log('details:', expenseError.details);
-    console.log('hint:', expenseError.hint);
-
-    alert(
-        'ERROR SUPABASE:\n\n' +
-        'Code: ' + expenseError.code + '\n' +
-        'Message: ' + expenseError.message + '\n' +
-        'Details: ' + expenseError.details
-    );
-
-    return;
-}
-
-    console.log(
-        '✅ Gasto creado:',
-        expense
-    );
-
-    // ==============================
-    // 6. CALCULAR PARTE DE CADA UNO
-    // ==============================
-
-    const baseAmount =
-        Math.floor(
-            amount / participants.length
-        );
-
-    let remainder =
-        amount -
-        baseAmount * participants.length;
-
-    const participantRows =
-        participants.map(memberId => {
-
-            let share = baseAmount;
-
-            if (remainder > 0) {
-                share += 1;
-                remainder--;
-            }
-
-            return {
-                expense_id: expense.id,
-                group_member_id: memberId,
-                amount_cents: share
-            };
         });
 
-    console.log(
-        '👥 Participaciones:',
-        participantRows
-    );
+        if (!description) {
+            alert('Ingresá una descripción.');
+            return;
+        }
 
-    // ==============================
-    // 7. GUARDAR PARTICIPANTES
-    // ==============================
+        if (!amountText) {
+            alert('Ingresá un monto.');
+            return;
+        }
 
-    const {
-        data: savedParticipants,
-        error: participantError
-    } = await supabaseClient
-        .from('expense_participants')
-        .insert(participantRows)
-        .select();
+        if (!payer) {
+            alert('Seleccioná quién pagó.');
+            return;
+        }
 
-    if (participantError) {
+        if (!participants.length) {
+            alert('Seleccioná al menos un participante.');
+            return;
+        }
+
+        const amount = parseMoney(amountText);
+
+        if (!amount || amount <= 0) {
+            alert('Ingresá un monto válido.');
+            return;
+        }
+
+        console.log('💰 Monto convertido:', amount);
+        console.log('💳 Intentando crear gasto...');
+
+        // 2. Crear gasto
+        const {
+            data: expense,
+            error: expenseError
+        } = await supabaseClient
+            .from('expenses')
+            .insert({
+                gathering_id: activityId,
+                description: description,
+                amount_cents: amount,
+                paid_by: payer,
+                division_type: 'equal'
+            })
+            .select()
+            .single();
+
+        if (expenseError) {
+            console.error('🚨 ERROR SUPABASE:', expenseError);
+
+            alert(
+                'ERROR SUPABASE:\n\n' +
+                'Code: ' + expenseError.code + '\n' +
+                'Message: ' + expenseError.message + '\n' +
+                'Details: ' + expenseError.details
+            );
+
+            return;
+        }
+
+        console.log('✅ Gasto creado:', expense);
+
+        // 3. Calcular cuánto corresponde a cada participante
+        const baseAmount =
+            Math.floor(amount / participants.length);
+
+        let remainder =
+            amount - baseAmount * participants.length;
+
+        const participantRows =
+            participants.map(memberId => {
+
+                let share = baseAmount;
+
+                if (remainder > 0) {
+                    share += 1;
+                    remainder--;
+                }
+
+                return {
+                    expense_id: expense.id,
+                    group_member_id: memberId,
+                    amount_cents: share
+                };
+            });
+
+        console.log(
+            '👥 Participaciones:',
+            participantRows
+        );
+
+        // 4. Guardar participantes
+        const {
+            data: savedParticipants,
+            error: participantError
+        } = await supabaseClient
+            .from('expense_participants')
+            .insert(participantRows)
+            .select();
+
+        if (participantError) {
+
+            console.error(
+                '❌ Error guardando participantes:',
+                participantError
+            );
+
+            // Rollback manual
+            await supabaseClient
+                .from('expenses')
+                .delete()
+                .eq('id', expense.id);
+
+            alert(
+                'No se pudieron guardar los participantes.'
+            );
+
+            return;
+        }
+
+        console.log(
+            '✅ Participantes guardados:',
+            savedParticipants
+        );
+
+        alert('¡Gasto guardado! 🎉');
+
+        await renderActivity();
+
+    } catch (error) {
 
         console.error(
-            '❌ Error guardando participantes:',
-            participantError
+            '💥 Error inesperado guardando gasto:',
+            error
         );
-
-        // Si falló el segundo INSERT,
-        // eliminamos el gasto creado.
-        await supabaseClient
-            .from('expenses')
-            .delete()
-            .eq('id', expense.id);
 
         alert(
-            'No se pudieron guardar los participantes.'
+            'Ocurrió un error inesperado al guardar el gasto.'
         );
 
-        return;
+    } finally {
+
+        // 🔓 Liberamos el bloqueo
+        savingExpense = false;
+
+        const button =
+            document.getElementById('saveExpenseBtn');
+
+        if (button) {
+            button.disabled = false;
+            button.textContent = 'GUARDAR GASTO';
+        }
     }
-
-    console.log(
-        '✅ Participantes guardados:',
-        savedParticipants
-    );
-
-    // ==============================
-    // 8. VOLVER A LA ACTIVIDAD
-    // ==============================
-
-     alert('¡Gasto guardado! 🎉');
-    
-    await renderActivity();
 }
 
 async function recalculateSettlements(activityId) {

@@ -1096,14 +1096,7 @@ async function saveExpense() {
     // 8. VOLVER A LA ACTIVIDAD
     // ==============================
 
-        console.log(
-        '🔄 Recalculando liquidaciones...');
-    
-    await recalculateSettlements(activityId);
-    
-    alert(
-        '¡Gasto guardado y liquidaciones actualizadas! 🎉'
-    );
+     alert('¡Gasto guardado! 🎉');
     
     await renderActivity();
 }

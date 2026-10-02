@@ -1204,71 +1204,39 @@ async function recalculateSettlements(activityId) {
         return;
     }
 
-    // IDs de group_members
     const participantIds =
         gatheringMembers.map(
             member => member.group_member_id
         );
 
     // ==========================================
-    // 3. CONSTRUIR GASTOS EN FORMATO DEL MOTOR
-    // ==========================================
-
-    const gatheringForEngine = {
-        participants: participantIds,
-        expenses: []
-    };
-
-    for (const expense of expenses) {
-
-        const participants =
-            await getExpenseParticipants(expense.id);
-
-        gatheringForEngine.expenses.push({
-            id: expense.id,
-
-            amount: expense.amount_cents,
-
-            payer: expense.paid_by,
-
-            participants:
-                participants.map(
-                    participant =>
-                        participant.group_member_id
-                ),
-
-            method:
-                expense.division_type === 'fixed'
-                    ? 'amount'
-                    : expense.division_type === 'percentage'
-                        ? 'percent'
-                        : 'equal',
-
-            values:
-                Object.fromEntries(
-                    participants.map(
-                        participant => [
-                            participant.group_member_id,
-                            participant.amount_cents
-                        ]
-                    )
-                )
-        });
-    }
-
-    console.log(
-        '🧮 Datos enviados al motor:',
-        gatheringForEngine
-    );
-
-    // ==========================================
-    // 4. CALCULAR BALANCES
+    // 3. ARMAR BALANCES
     // ==========================================
 
     const balances =
-        calculateBalances(
-            gatheringForEngine
+        Object.fromEntries(
+            participantIds.map(id => [id, 0])
         );
+
+    for (const expense of expenses) {
+
+        // Quién pagó recibe crédito
+        balances[expense.paid_by] +=
+            expense.amount_cents;
+
+        // Obtener cuánto corresponde a cada participante
+        const participants =
+            await getExpenseParticipants(
+                expense.id
+            );
+
+        // Restar la parte correspondiente
+        for (const participant of participants) {
+
+            balances[participant.group_member_id] -=
+                participant.amount_cents;
+        }
+    }
 
     console.log(
         '⚖️ BALANCES:',
@@ -1276,7 +1244,7 @@ async function recalculateSettlements(activityId) {
     );
 
     // ==========================================
-    // 5. SIMPLIFICAR DEUDAS
+    // 4. SIMPLIFICAR TRANSFERENCIAS
     // ==========================================
 
     const transfers =
@@ -1288,7 +1256,7 @@ async function recalculateSettlements(activityId) {
     );
 
     // ==========================================
-    // 6. BORRAR LIQUIDACIONES ANTERIORES
+    // 5. BORRAR LIQUIDACIONES ANTERIORES
     // ==========================================
 
     const {
@@ -1309,7 +1277,7 @@ async function recalculateSettlements(activityId) {
     }
 
     // ==========================================
-    // 7. SI NO HAY DEUDAS, TERMINAMOS
+    // 6. SI NO HAY DEUDAS
     // ==========================================
 
     if (!transfers.length) {
@@ -1322,7 +1290,7 @@ async function recalculateSettlements(activityId) {
     }
 
     // ==========================================
-    // 8. CREAR NUEVAS LIQUIDACIONES
+    // 7. CREAR NUEVAS LIQUIDACIONES
     // ==========================================
 
     const settlementRows =
@@ -1335,7 +1303,7 @@ async function recalculateSettlements(activityId) {
         }));
 
     console.log(
-        '💸 Nuevas liquidaciones:',
+        '💸 NUEVAS LIQUIDACIONES:',
         settlementRows
     );
 
@@ -1344,7 +1312,9 @@ async function recalculateSettlements(activityId) {
         error: settlementError
     } = await supabaseClient
         .from('settlements')
-        .insert(settlementRows)
+        .insert(
+            settlementRows
+        )
         .select();
 
     if (settlementError) {

@@ -1096,10 +1096,16 @@ async function saveExpense() {
     // 8. VOLVER A LA ACTIVIDAD
     // ==============================
 
-    alert(
-        '¡Gasto guardado! 🎉'
+        console.log(
+        '🔄 Recalculando liquidaciones...'
     );
-
+    
+    await recalculateSettlements(activityId);
+    
+    alert(
+        '¡Gasto guardado y liquidaciones actualizadas! 🎉'
+    );
+    
     await renderActivity();
 }
 
@@ -1173,6 +1179,189 @@ function showLogin() {
     `;
 }
 
+
+async function recalculateSettlements(activityId) {
+
+    console.log('🔄 Recalculando liquidaciones...');
+
+    // ==========================================
+    // 1. OBTENER GASTOS
+    // ==========================================
+
+    const expenses = await getExpenses(activityId);
+
+    // ==========================================
+    // 2. OBTENER PARTICIPANTES DE LA ACTIVIDAD
+    // ==========================================
+
+    const gatheringMembers =
+        await getGatheringMembers(activityId);
+
+    if (!gatheringMembers.length) {
+        console.warn(
+            '⚠️ La actividad no tiene participantes.'
+        );
+        return;
+    }
+
+    // IDs de group_members
+    const participantIds =
+        gatheringMembers.map(
+            member => member.group_member_id
+        );
+
+    // ==========================================
+    // 3. CONSTRUIR GASTOS EN FORMATO DEL MOTOR
+    // ==========================================
+
+    const gatheringForEngine = {
+        participants: participantIds,
+        expenses: []
+    };
+
+    for (const expense of expenses) {
+
+        const participants =
+            await getExpenseParticipants(expense.id);
+
+        gatheringForEngine.expenses.push({
+            id: expense.id,
+
+            amount: expense.amount_cents,
+
+            payer: expense.paid_by,
+
+            participants:
+                participants.map(
+                    participant =>
+                        participant.group_member_id
+                ),
+
+            method:
+                expense.division_type === 'fixed'
+                    ? 'amount'
+                    : expense.division_type === 'percentage'
+                        ? 'percent'
+                        : 'equal',
+
+            values:
+                Object.fromEntries(
+                    participants.map(
+                        participant => [
+                            participant.group_member_id,
+                            participant.amount_cents
+                        ]
+                    )
+                )
+        });
+    }
+
+    console.log(
+        '🧮 Datos enviados al motor:',
+        gatheringForEngine
+    );
+
+    // ==========================================
+    // 4. CALCULAR BALANCES
+    // ==========================================
+
+    const balances =
+        calculateBalances(
+            gatheringForEngine
+        );
+
+    console.log(
+        '⚖️ BALANCES:',
+        balances
+    );
+
+    // ==========================================
+    // 5. SIMPLIFICAR DEUDAS
+    // ==========================================
+
+    const transfers =
+        simplifyTransfers(balances);
+
+    console.log(
+        '💸 TRANSFERENCIAS:',
+        transfers
+    );
+
+    // ==========================================
+    // 6. BORRAR LIQUIDACIONES ANTERIORES
+    // ==========================================
+
+    const {
+        error: deleteError
+    } = await supabaseClient
+        .from('settlements')
+        .delete()
+        .eq('gathering_id', activityId);
+
+    if (deleteError) {
+
+        console.error(
+            '❌ Error eliminando liquidaciones anteriores:',
+            deleteError
+        );
+
+        throw deleteError;
+    }
+
+    // ==========================================
+    // 7. SI NO HAY DEUDAS, TERMINAMOS
+    // ==========================================
+
+    if (!transfers.length) {
+
+        console.log(
+            '✅ La actividad está equilibrada.'
+        );
+
+        return;
+    }
+
+    // ==========================================
+    // 8. CREAR NUEVAS LIQUIDACIONES
+    // ==========================================
+
+    const settlementRows =
+        transfers.map(transfer => ({
+            gathering_id: activityId,
+            from_member: transfer.from,
+            to_member: transfer.to,
+            amount_cents: transfer.amount,
+            status: 'pending'
+        }));
+
+    console.log(
+        '💸 Nuevas liquidaciones:',
+        settlementRows
+    );
+
+    const {
+        data: savedSettlements,
+        error: settlementError
+    } = await supabaseClient
+        .from('settlements')
+        .insert(settlementRows)
+        .select();
+
+    if (settlementError) {
+
+        console.error(
+            '❌ Error creando liquidaciones:',
+            settlementError
+        );
+
+        throw settlementError;
+    }
+
+    console.log(
+        '✅ Liquidaciones actualizadas:',
+        savedSettlements
+    );
+}
 
 async function login() {
     const email = document.getElementById('loginEmail').value;

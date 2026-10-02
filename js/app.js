@@ -1079,34 +1079,77 @@ async function saveExpense() {
     }
 }
 
+
+
+function openActivity(activityId) {
+    window.supabaseData.currentActivityId = activityId;
+
+    console.log(
+        '📅 Actividad seleccionada:',
+        activityId
+    );
+
+    currentView = 'activity';
+    render();
+}
+
+
+function showResult(){const g=data.gatherings.find(x=>x.id===currentGatheringId);const balances=calculateBalances(g);const transfers=simplifyTransfers(balances);const total=g.expenses.reduce((s,e)=>s+e.amount,0);g.lastTransfers=transfers;g.status=transfers.length?'pending':'settled';saveData(data);app.innerHTML=`<div class="content"><button class="back" onclick="renderGathering()">← Volver</button><section class="hero"><div class="eyebrow">🧮 RUSH SPLIT hizo las cuentas</div><h1>💸 ¿Quién le paga a quién?</h1><p>${formatMoney(total)} · ${transfers.length} ${transfers.length===1?'pago':'pagos'} para saldar.</p></section><div class="card result-box">${transfers.length?transfers.map(t=>`<div class="transfer"><strong>🔴 ${escapeHtml(personName(t.from))} → 🟢 ${escapeHtml(personName(t.to))}</strong><span>${formatMoney(t.amount)}</span></div>`).join(''):'<div class="success" style="font-weight:800">🟢 Todo saldado.</div>'}</div><button class="big-btn whatsapp" onclick="shareWhatsApp()">📲 COMPARTIR EN WHATSAPP</button><div class="section-title"><h2>Estado</h2></div><div class="card">${Object.entries(balances).map(([id,v])=>`<div class="expense-row"><div class="grow"><strong>${escapeHtml(personName(id))}</strong></div><span class="${v>0?'success':v<0?'danger':''}">${v>0?'Recibe ':v<0?'Paga ':'Está saldado '} ${v?formatMoney(Math.abs(v)):''}</span></div>`).join('')}</div></div>`}
+function shareWhatsApp(){const g=data.gatherings.find(x=>x.id===currentGatheringId);const transfers=g.lastTransfers||simplifyTransfers(calculateBalances(g));const total=g.expenses.reduce((s,e)=>s+e.amount,0);const cats=[...new Set(g.expenses.map(e=>emojiFor(e.type)))].join('');let text=`🥩 RUSH SPLIT — ${g.name}\n\n💰 Total: ${formatMoney(total)}\n${cats}\n\n💸 Para saldar:\n\n`;text+=transfers.length?transfers.map(t=>`${personName(t.from)} → ${personName(t.to)}: ${formatMoney(t.amount)}`).join('\n'):'🟢 Todo saldado';text+='\n\n🟢 Con estos pagos queda todo saldado.\n\n🥩 RUSH SPLIT';window.location.href='https://wa.me/?text='+encodeURIComponent(text)}
+function escapeHtml(s){return String(s).replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]))}
+checkAuth();
+
+// Persistencia adicional: si el navegador soporta service workers, dejamos preparada la PWA.
+if ('serviceWorker' in navigator && location.protocol !== 'file:') {
+  navigator.serviceWorker.register('./sw.js').catch(()=>{});
+}
+
 async function recalculateSettlements(activityId) {
 
-    console.log('🔄 RECalculando liquidaciones para:', activityId);
+    console.log(
+        '🔄 RECALCULANDO LIQUIDACIONES PARA:',
+        activityId
+    );
 
     try {
 
-        // 1. Obtener todos los gastos
-        const expenses = await getExpenses(activityId);
+        // ==========================================
+        // 1. OBTENER GASTOS
+        // ==========================================
 
-        console.log('💳 Gastos encontrados:', expenses);
+        const expenses =
+            await getExpenses(activityId);
 
-        // 2. Obtener participantes de la actividad
+        console.log(
+            '💳 GASTOS ENCONTRADOS:',
+            expenses
+        );
+
+        // ==========================================
+        // 2. OBTENER PARTICIPANTES
+        // ==========================================
+
         const gatheringMembers =
             await getGatheringMembers(activityId);
 
         console.log(
-            '👥 Participantes de la actividad:',
+            '👥 PARTICIPANTES DE LA ACTIVIDAD:',
             gatheringMembers
         );
 
         if (!gatheringMembers.length) {
+
             console.warn(
                 '⚠️ La actividad no tiene participantes.'
             );
+
             return;
         }
 
-        // 3. Inicializar balances
+        // ==========================================
+        // 3. INICIALIZAR BALANCES
+        // ==========================================
+
         const participantIds =
             gatheringMembers.map(
                 member => member.group_member_id
@@ -1120,15 +1163,18 @@ async function recalculateSettlements(activityId) {
             );
 
         console.log(
-            '⚖️ Balances iniciales:',
+            '⚖️ BALANCES INICIALES:',
             balances
         );
 
-        // 4. Procesar cada gasto
+        // ==========================================
+        // 4. PROCESAR CADA GASTO
+        // ==========================================
+
         for (const expense of expenses) {
 
             console.log(
-                '💰 Procesando gasto:',
+                '💰 PROCESANDO GASTO:',
                 expense
             );
 
@@ -1136,14 +1182,14 @@ async function recalculateSettlements(activityId) {
             balances[expense.paid_by] +=
                 expense.amount_cents;
 
-            // Obtener cómo se repartió
+            // Obtener las partes del gasto
             const participants =
                 await getExpenseParticipants(
                     expense.id
                 );
 
             console.log(
-                '👥 Participaciones del gasto:',
+                '👥 PARTICIPACIONES DEL GASTO:',
                 participants
             );
 
@@ -1152,7 +1198,8 @@ async function recalculateSettlements(activityId) {
 
                 balances[
                     participant.group_member_id
-                ] -= participant.amount_cents;
+                ] -=
+                    participant.amount_cents;
 
             }
         }
@@ -1162,7 +1209,10 @@ async function recalculateSettlements(activityId) {
             balances
         );
 
-        // 5. Convertir balances en transferencias
+        // ==========================================
+        // 5. SIMPLIFICAR TRANSFERENCIAS
+        // ==========================================
+
         const transfers =
             simplifyTransfers(balances);
 
@@ -1171,7 +1221,14 @@ async function recalculateSettlements(activityId) {
             transfers
         );
 
-        // 6. Borrar liquidaciones anteriores
+        // ==========================================
+        // 6. BORRAR LIQUIDACIONES ANTERIORES
+        // ==========================================
+
+        console.log(
+            '🗑️ Eliminando settlements anteriores...'
+        );
+
         const {
             error: deleteError
         } = await supabaseClient
@@ -1189,27 +1246,40 @@ async function recalculateSettlements(activityId) {
             throw deleteError;
         }
 
-        // 7. Si nadie debe nada
+        console.log(
+            '✅ Settlements anteriores eliminados.'
+        );
+
+        // ==========================================
+        // 7. SI NO HAY DEUDAS
+        // ==========================================
+
         if (!transfers.length) {
 
             console.log(
-                '✅ La actividad está completamente equilibrada.'
+                '✅ LA ACTIVIDAD ESTÁ COMPLETAMENTE EQUILIBRADA.'
             );
 
             return;
         }
 
-        // 8. Crear nuevas liquidaciones
+        // ==========================================
+        // 8. CREAR NUEVAS LIQUIDACIONES
+        // ==========================================
+
         const settlementRows =
             transfers.map(transfer => ({
 
                 gathering_id: activityId,
 
-                from_member: transfer.from,
+                from_member:
+                    transfer.from,
 
-                to_member: transfer.to,
+                to_member:
+                    transfer.to,
 
-                amount_cents: transfer.amount,
+                amount_cents:
+                    transfer.amount,
 
                 status: 'pending'
 
@@ -1254,28 +1324,6 @@ async function recalculateSettlements(activityId) {
     }
 }
 
-function openActivity(activityId) {
-    window.supabaseData.currentActivityId = activityId;
-
-    console.log(
-        '📅 Actividad seleccionada:',
-        activityId
-    );
-
-    currentView = 'activity';
-    render();
-}
-
-
-function showResult(){const g=data.gatherings.find(x=>x.id===currentGatheringId);const balances=calculateBalances(g);const transfers=simplifyTransfers(balances);const total=g.expenses.reduce((s,e)=>s+e.amount,0);g.lastTransfers=transfers;g.status=transfers.length?'pending':'settled';saveData(data);app.innerHTML=`<div class="content"><button class="back" onclick="renderGathering()">← Volver</button><section class="hero"><div class="eyebrow">🧮 RUSH SPLIT hizo las cuentas</div><h1>💸 ¿Quién le paga a quién?</h1><p>${formatMoney(total)} · ${transfers.length} ${transfers.length===1?'pago':'pagos'} para saldar.</p></section><div class="card result-box">${transfers.length?transfers.map(t=>`<div class="transfer"><strong>🔴 ${escapeHtml(personName(t.from))} → 🟢 ${escapeHtml(personName(t.to))}</strong><span>${formatMoney(t.amount)}</span></div>`).join(''):'<div class="success" style="font-weight:800">🟢 Todo saldado.</div>'}</div><button class="big-btn whatsapp" onclick="shareWhatsApp()">📲 COMPARTIR EN WHATSAPP</button><div class="section-title"><h2>Estado</h2></div><div class="card">${Object.entries(balances).map(([id,v])=>`<div class="expense-row"><div class="grow"><strong>${escapeHtml(personName(id))}</strong></div><span class="${v>0?'success':v<0?'danger':''}">${v>0?'Recibe ':v<0?'Paga ':'Está saldado '} ${v?formatMoney(Math.abs(v)):''}</span></div>`).join('')}</div></div>`}
-function shareWhatsApp(){const g=data.gatherings.find(x=>x.id===currentGatheringId);const transfers=g.lastTransfers||simplifyTransfers(calculateBalances(g));const total=g.expenses.reduce((s,e)=>s+e.amount,0);const cats=[...new Set(g.expenses.map(e=>emojiFor(e.type)))].join('');let text=`🥩 RUSH SPLIT — ${g.name}\n\n💰 Total: ${formatMoney(total)}\n${cats}\n\n💸 Para saldar:\n\n`;text+=transfers.length?transfers.map(t=>`${personName(t.from)} → ${personName(t.to)}: ${formatMoney(t.amount)}`).join('\n'):'🟢 Todo saldado';text+='\n\n🟢 Con estos pagos queda todo saldado.\n\n🥩 RUSH SPLIT';window.location.href='https://wa.me/?text='+encodeURIComponent(text)}
-function escapeHtml(s){return String(s).replace(/[&<>'"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;',"'":'&#39;','"':'&quot;'}[c]))}
-checkAuth();
-
-// Persistencia adicional: si el navegador soporta service workers, dejamos preparada la PWA.
-if ('serviceWorker' in navigator && location.protocol !== 'file:') {
-  navigator.serviceWorker.register('./sw.js').catch(()=>{});
-}
 
 function showLogin() {
     document.body.innerHTML = `
@@ -1325,158 +1373,7 @@ function showLogin() {
 }
 
 
-async function recalculateSettlements(activityId) {
 
-    console.log('🔄 Recalculando liquidaciones...');
-
-    // ==========================================
-    // 1. OBTENER GASTOS
-    // ==========================================
-
-    const expenses = await getExpenses(activityId);
-
-    // ==========================================
-    // 2. OBTENER PARTICIPANTES DE LA ACTIVIDAD
-    // ==========================================
-
-    const gatheringMembers =
-        await getGatheringMembers(activityId);
-
-    if (!gatheringMembers.length) {
-        console.warn(
-            '⚠️ La actividad no tiene participantes.'
-        );
-        return;
-    }
-
-    const participantIds =
-        gatheringMembers.map(
-            member => member.group_member_id
-        );
-
-    // ==========================================
-    // 3. ARMAR BALANCES
-    // ==========================================
-
-    const balances =
-        Object.fromEntries(
-            participantIds.map(id => [id, 0])
-        );
-
-    for (const expense of expenses) {
-
-        // Quién pagó recibe crédito
-        balances[expense.paid_by] +=
-            expense.amount_cents;
-
-        // Obtener cuánto corresponde a cada participante
-        const participants =
-            await getExpenseParticipants(
-                expense.id
-            );
-
-        // Restar la parte correspondiente
-        for (const participant of participants) {
-
-            balances[participant.group_member_id] -=
-                participant.amount_cents;
-        }
-    }
-
-    console.log(
-        '⚖️ BALANCES:',
-        balances
-    );
-
-    // ==========================================
-    // 4. SIMPLIFICAR TRANSFERENCIAS
-    // ==========================================
-
-    const transfers =
-        simplifyTransfers(balances);
-
-    console.log(
-        '💸 TRANSFERENCIAS:',
-        transfers
-    );
-
-    // ==========================================
-    // 5. BORRAR LIQUIDACIONES ANTERIORES
-    // ==========================================
-
-    const {
-        error: deleteError
-    } = await supabaseClient
-        .from('settlements')
-        .delete()
-        .eq('gathering_id', activityId);
-
-    if (deleteError) {
-
-        console.error(
-            '❌ Error eliminando liquidaciones anteriores:',
-            deleteError
-        );
-
-        throw deleteError;
-    }
-
-    // ==========================================
-    // 6. SI NO HAY DEUDAS
-    // ==========================================
-
-    if (!transfers.length) {
-
-        console.log(
-            '✅ La actividad está equilibrada.'
-        );
-
-        return;
-    }
-
-    // ==========================================
-    // 7. CREAR NUEVAS LIQUIDACIONES
-    // ==========================================
-
-    const settlementRows =
-        transfers.map(transfer => ({
-            gathering_id: activityId,
-            from_member: transfer.from,
-            to_member: transfer.to,
-            amount_cents: transfer.amount,
-            status: 'pending'
-        }));
-
-    console.log(
-        '💸 NUEVAS LIQUIDACIONES:',
-        settlementRows
-    );
-
-    const {
-        data: savedSettlements,
-        error: settlementError
-    } = await supabaseClient
-        .from('settlements')
-        .insert(
-            settlementRows
-        )
-        .select();
-
-    if (settlementError) {
-
-        console.error(
-            '❌ Error creando liquidaciones:',
-            settlementError
-        );
-
-        throw settlementError;
-    }
-
-    console.log(
-        '✅ Liquidaciones actualizadas:',
-        savedSettlements
-    );
-}
 
 async function login() {
     const email = document.getElementById('loginEmail').value;

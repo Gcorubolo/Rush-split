@@ -677,9 +677,9 @@ async function renderActivity() {
 
                     <div class="history-main">
                         <strong>
-                            ${escapeHtml(settlement.from_member)}
-                            → 
-                            ${escapeHtml(settlement.to_member)}
+                            ${escapeHtml(settlement.from_member?.display_name || 'Persona')}
+                            →
+                            ${escapeHtml(settlement.to_member?.display_name || 'Persona')}
                         </strong>
 
                         <small>

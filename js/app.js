@@ -608,6 +608,10 @@ async function renderActivity() {
         return;
     }
 
+    // =========================
+    // CARGAR ACTIVIDAD
+    // =========================
+
     const { data: activity, error } = await supabaseClient
         .from('gatherings')
         .select('*')
@@ -620,16 +624,109 @@ async function renderActivity() {
         return;
     }
 
+    // =========================
+    // CARGAR DATOS
+    // =========================
+
     const expenses = await getExpenses(activityId);
     const settlements = await getSettlements(activityId);
+    const gatheringMembers = await getGatheringMembers(activityId);
 
     console.log('💸 Liquidaciones:', settlements);
-    console.log('💳 Gastos de la actividad:', expenses);
+    console.log('💳 Gastos:', expenses);
+    console.log('👥 Participantes:', gatheringMembers);
 
     window.supabaseData.currentActivity = activity;
 
+
+    // =========================
+    // CALCULAR RESUMEN
+    // =========================
+
+    const summary = {};
+
+    gatheringMembers.forEach(member => {
+
+        const memberId = member.group_member_id;
+
+        summary[memberId] = {
+            id: memberId,
+            name: member.group_member?.display_name || 'Persona',
+            paid: 0,
+            owed: 0,
+            balance: 0
+        };
+
+    });
+
+
+    // =========================
+    // PROCESAR GASTOS
+    // =========================
+
+    for (const expense of expenses) {
+
+        // Quién pagó
+        if (summary[expense.paid_by]) {
+            summary[expense.paid_by].paid +=
+                expense.amount_cents;
+        }
+
+        // Cuánto le correspondió a cada uno
+        const participants =
+            await getExpenseParticipants(expense.id);
+
+        participants.forEach(participant => {
+
+            if (summary[participant.group_member_id]) {
+
+                summary[
+                    participant.group_member_id
+                ].owed += participant.amount_cents;
+
+            }
+
+        });
+
+    }
+
+
+    // =========================
+    // CALCULAR BALANCE
+    // =========================
+
+    Object.values(summary).forEach(person => {
+
+        person.balance =
+            person.paid - person.owed;
+
+    });
+
+
+    // =========================
+    // TOTAL
+    // =========================
+
+    const totalSpent =
+        expenses.reduce(
+            (total, expense) =>
+                total + expense.amount_cents,
+            0
+        );
+
+
+    // =========================
+    // HTML
+    // =========================
+
     shell(`
+
+        <!-- ========================= -->
+        <!-- HEADER -->
+        <!-- ========================= -->
+
         <section class="hero">
+
             <div class="eyebrow">
                 ${escapeHtml(activity.category)}
             </div>
@@ -640,74 +737,18 @@ async function renderActivity() {
 
             <p>
                 ${escapeHtml(activity.date)}
-                ${activity.location
-                    ? ` · ${escapeHtml(activity.location)}`
-                    : ''
+                ${
+                    activity.location
+                        ? ` · ${escapeHtml(activity.location)}`
+                        : ''
                 }
             </p>
+
         </section>
 
 
         <!-- ========================= -->
-        <!-- RESUMEN -->
-        <!-- ========================= -->
-
-        <div class="card">
-            <div class="section-title">
-                <h2>💰 Resumen</h2>
-            </div>
-
-            <div class="empty">
-                Acá vamos a mostrar los balances de esta actividad.
-            </div>
-        </div>
-
-
-        <!-- ========================= -->
-        <!-- GASTOS -->
-        <!-- ========================= -->
-
-        <div class="card">
-            <div class="section-title">
-                <h2>💳 Gastos</h2>
-            </div>
-
-            ${
-                expenses.length
-                    ? expenses.map(expense => `
-                        <div class="history-item">
-
-                            <div class="history-emoji">
-                                💳
-                            </div>
-
-                            <div class="history-main">
-
-                                <strong>
-                                    ${escapeHtml(expense.description)}
-                                </strong>
-
-                                <small>
-                                    $${Number(
-                                        expense.amount_cents / 100
-                                    ).toLocaleString('es-AR')}
-                                </small>
-
-                            </div>
-
-                        </div>
-                    `).join('')
-                    : `
-                        <div class="empty">
-                            Todavía no hay gastos cargados.
-                        </div>
-                    `
-            }
-        </div>
-
-
-        <!-- ========================= -->
-        <!-- LIQUIDACIONES -->
+        <!-- DEUDAS -->
         <!-- ========================= -->
 
         <div class="card">
@@ -718,6 +759,7 @@ async function renderActivity() {
 
             ${
                 settlements.length
+
                     ? settlements.map(settlement => {
 
                         let statusText = '';
@@ -742,11 +784,10 @@ async function renderActivity() {
                         let settlementActions = '';
 
 
-                        // =========================
-                        // PAGO PENDIENTE
-                        // =========================
-
-                        if (settlement.status === 'pending') {
+                        // PENDIENTE
+                        if (
+                            settlement.status === 'pending'
+                        ) {
 
                             settlementActions = `
                                 <button
@@ -761,10 +802,7 @@ async function renderActivity() {
                         }
 
 
-                        // =========================
                         // PAGO INFORMADO
-                        // =========================
-
                         if (
                             settlement.status ===
                             'payment_reported'
@@ -792,6 +830,7 @@ async function renderActivity() {
 
 
                         return `
+
                             <div
                                 class="history-item"
                                 style="display:block;"
@@ -857,13 +896,190 @@ async function renderActivity() {
                                 ${settlementActions}
 
                             </div>
+
                         `;
+
                     }).join('')
 
                     : `
+
                         <div class="empty">
                             No hay pagos pendientes.
                         </div>
+
+                    `
+            }
+
+        </div>
+
+
+        <!-- ========================= -->
+        <!-- RESUMEN -->
+        <!-- ========================= -->
+
+        <div class="card">
+
+            <div class="section-title">
+                <h2>💰 Resumen</h2>
+            </div>
+
+
+            <div
+                style="
+                    text-align:center;
+                    margin-bottom:20px;
+                "
+            >
+
+                <small>
+                    TOTAL GASTADO
+                </small>
+
+                <div
+                    style="
+                        font-size:28px;
+                        font-weight:700;
+                        margin-top:4px;
+                    "
+                >
+                    $${Number(
+                        totalSpent / 100
+                    ).toLocaleString('es-AR')}
+                </div>
+
+            </div>
+
+
+            ${
+                Object.values(summary)
+                    .map(person => {
+
+                        const balanceClass =
+                            person.balance > 0
+                                ? '🟢'
+                                : person.balance < 0
+                                    ? '🔴'
+                                    : '⚪';
+
+
+                        const balanceText =
+                            person.balance > 0
+                                ? `+${Number(
+                                    person.balance / 100
+                                ).toLocaleString('es-AR')}`
+                                : Number(
+                                    person.balance / 100
+                                ).toLocaleString('es-AR');
+
+
+                        return `
+
+                            <div
+                                class="history-item"
+                                style="display:block;"
+                            >
+
+                                <strong>
+                                    ${escapeHtml(person.name)}
+                                </strong>
+
+                                <div
+                                    style="
+                                        display:flex;
+                                        justify-content:space-between;
+                                        margin-top:8px;
+                                        gap:10px;
+                                    "
+                                >
+
+                                    <small>
+                                        Puso:
+                                        $${Number(
+                                            person.paid / 100
+                                        ).toLocaleString('es-AR')}
+                                    </small>
+
+                                    <small>
+                                        Le correspondía:
+                                        $${Number(
+                                            person.owed / 100
+                                        ).toLocaleString('es-AR')}
+                                    </small>
+
+                                </div>
+
+                                <div
+                                    style="
+                                        margin-top:6px;
+                                        font-weight:700;
+                                    "
+                                >
+
+                                    ${balanceClass}
+                                    Balance:
+                                    ${balanceText}
+
+                                </div>
+
+                            </div>
+
+                        `;
+
+                    })
+                    .join('')
+            }
+
+        </div>
+
+
+        <!-- ========================= -->
+        <!-- GASTOS -->
+        <!-- ========================= -->
+
+        <div class="card">
+
+            <div class="section-title">
+                <h2>💳 Gastos</h2>
+            </div>
+
+
+            ${
+                expenses.length
+
+                    ? expenses.map(expense => `
+
+                        <div class="history-item">
+
+                            <div class="history-emoji">
+                                💳
+                            </div>
+
+                            <div class="history-main">
+
+                                <strong>
+                                    ${escapeHtml(
+                                        expense.description
+                                    )}
+                                </strong>
+
+                                <small>
+                                    $${Number(
+                                        expense.amount_cents / 100
+                                    ).toLocaleString('es-AR')}
+                                </small>
+
+                            </div>
+
+                        </div>
+
+                    `).join('')
+
+                    : `
+
+                        <div class="empty">
+                            Todavía no hay gastos cargados.
+                        </div>
+
                     `
             }
 
@@ -889,10 +1105,14 @@ async function renderActivity() {
         <button
             class="back"
             onclick="setView('group')"
-            style="width:100%; margin-top:12px"
+            style="
+                width:100%;
+                margin-top:12px
+            "
         >
             ← Volver al grupo
         </button>
+
     `);
 }
 

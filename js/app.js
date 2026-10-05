@@ -685,9 +685,12 @@ async function renderActivity() {
                         <small>
                             ${
                                 settlement.status === 'paid'
-                                    ? '🟢 Pagado'
-                                    : '🟡 Pendiente'
+                        ? '🟢 Pagado'
+                        : settlement.status === 'payment_reported'
+                            ? '🟠 Pago informado'
+                            : '🟡 Pendiente'
                             }
+                            
                         </small>
                     </div>
 

@@ -647,6 +647,11 @@ async function renderActivity() {
             </p>
         </section>
 
+
+        <!-- ========================= -->
+        <!-- RESUMEN -->
+        <!-- ========================= -->
+
         <div class="card">
             <div class="section-title">
                 <h2>💰 Resumen</h2>
@@ -657,86 +662,217 @@ async function renderActivity() {
             </div>
         </div>
 
+
+        <!-- ========================= -->
+        <!-- GASTOS -->
+        <!-- ========================= -->
+
         <div class="card">
-    <div class="section-title">
-        <h2>💳 Gastos</h2>
-    </div>
+            <div class="section-title">
+                <h2>💳 Gastos</h2>
+            </div>
 
-    <div class="card">
-    <div class="section-title">
-        <h2>💸 ¿Quién le debe a quién?</h2>
-    </div>
+            ${
+                expenses.length
+                    ? expenses.map(expense => `
+                        <div class="history-item">
 
-    ${
-        settlements.length
-            ? settlements.map(settlement => `
-                <div class="history-item">
-                    <div class="history-emoji">
-                        💸
-                    </div>
+                            <div class="history-emoji">
+                                💳
+                            </div>
 
-                    <div class="history-main">
-                        <strong>
-                            ${escapeHtml(settlement.from_member?.display_name || 'Persona')}
-                            →
-                            ${escapeHtml(settlement.to_member?.display_name || 'Persona')}
-                        </strong>
+                            <div class="history-main">
 
-                        <small>
-                            ${
-                                settlement.status === 'paid'
-                        ? '🟢 Pagado'
-                        : settlement.status === 'payment_reported'
-                            ? '🟠 Pago informado'
-                            : '🟡 Pendiente'
-                            }
-                            
-                        </small>
-                    </div>
+                                <strong>
+                                    ${escapeHtml(expense.description)}
+                                </strong>
 
-                    <div class="history-side">
-                        <strong>
-                            $${Number(
-                                settlement.amount_cents / 100
-                            ).toLocaleString('es-AR')}
-                        </strong>
-                    </div>
-                </div>
-            `).join('')
-            : `
-                <div class="empty">
-                    No hay pagos pendientes.
-                </div>
-            `
-    }
-</div>
-    
-    ${
-        expenses.length
-            ? expenses.map(expense => `
-                <div class="history-item">
-                    <div class="history-emoji">
-                        💳
-                    </div>
+                                <small>
+                                    $${Number(
+                                        expense.amount_cents / 100
+                                    ).toLocaleString('es-AR')}
+                                </small>
 
-                    <div class="history-main">
-                        <strong>
-                            ${escapeHtml(expense.description)}
-                        </strong>
+                            </div>
 
-                        <small>
-                            $${Number(expense.amount_cents / 100).toLocaleString('es-AR')}
-                        </small>
-                    </div>
-                </div>
-            `).join('')
-            : `
-                <div class="empty">
-                    Todavía no hay gastos cargados.
-                </div>
-            `
-    }
-</div>
+                        </div>
+                    `).join('')
+                    : `
+                        <div class="empty">
+                            Todavía no hay gastos cargados.
+                        </div>
+                    `
+            }
+        </div>
+
+
+        <!-- ========================= -->
+        <!-- LIQUIDACIONES -->
+        <!-- ========================= -->
+
+        <div class="card">
+
+            <div class="section-title">
+                <h2>💸 ¿Quién le debe a quién?</h2>
+            </div>
+
+            ${
+                settlements.length
+                    ? settlements.map(settlement => {
+
+                        let statusText = '';
+
+                        if (settlement.status === 'paid') {
+
+                            statusText = '🟢 Pagado';
+
+                        } else if (
+                            settlement.status === 'payment_reported'
+                        ) {
+
+                            statusText = '🟠 Pago informado';
+
+                        } else {
+
+                            statusText = '🟡 Pendiente';
+
+                        }
+
+
+                        let settlementActions = '';
+
+
+                        // =========================
+                        // PAGO PENDIENTE
+                        // =========================
+
+                        if (settlement.status === 'pending') {
+
+                            settlementActions = `
+                                <button
+                                    class="big-btn"
+                                    onclick="reportPayment('${settlement.id}')"
+                                    style="margin-top:10px;"
+                                >
+                                    💸 INFORMAR PAGO
+                                </button>
+                            `;
+
+                        }
+
+
+                        // =========================
+                        // PAGO INFORMADO
+                        // =========================
+
+                        if (
+                            settlement.status ===
+                            'payment_reported'
+                        ) {
+
+                            settlementActions = `
+                                <button
+                                    class="big-btn"
+                                    onclick="confirmPayment('${settlement.id}')"
+                                    style="margin-top:10px;"
+                                >
+                                    ✅ CONFIRMAR RECEPCIÓN
+                                </button>
+
+                                <button
+                                    class="big-btn"
+                                    onclick="rejectPayment('${settlement.id}')"
+                                    style="margin-top:8px;"
+                                >
+                                    ❌ RECHAZAR PAGO
+                                </button>
+                            `;
+
+                        }
+
+
+                        return `
+                            <div
+                                class="history-item"
+                                style="display:block;"
+                            >
+
+                                <div
+                                    style="
+                                        display:flex;
+                                        justify-content:space-between;
+                                        align-items:flex-start;
+                                        gap:12px;
+                                    "
+                                >
+
+                                    <div
+                                        style="
+                                            display:flex;
+                                            gap:12px;
+                                            align-items:center;
+                                        "
+                                    >
+
+                                        <div class="history-emoji">
+                                            💸
+                                        </div>
+
+                                        <div class="history-main">
+
+                                            <strong>
+                                                ${escapeHtml(
+                                                    settlement.from_member?.display_name
+                                                    || 'Persona'
+                                                )}
+                                                →
+                                                ${escapeHtml(
+                                                    settlement.to_member?.display_name
+                                                    || 'Persona'
+                                                )}
+                                            </strong>
+
+                                            <small>
+                                                ${statusText}
+                                            </small>
+
+                                        </div>
+
+                                    </div>
+
+
+                                    <div class="history-side">
+
+                                        <strong>
+                                            $${Number(
+                                                settlement.amount_cents / 100
+                                            ).toLocaleString('es-AR')}
+                                        </strong>
+
+                                    </div>
+
+                                </div>
+
+
+                                ${settlementActions}
+
+                            </div>
+                        `;
+                    }).join('')
+
+                    : `
+                        <div class="empty">
+                            No hay pagos pendientes.
+                        </div>
+                    `
+            }
+
+        </div>
+
+
+        <!-- ========================= -->
+        <!-- AGREGAR GASTO -->
+        <!-- ========================= -->
 
         <button
             class="big-btn"
@@ -744,6 +880,11 @@ async function renderActivity() {
         >
             ＋ AGREGAR GASTO
         </button>
+
+
+        <!-- ========================= -->
+        <!-- VOLVER -->
+        <!-- ========================= -->
 
         <button
             class="back"
@@ -1444,3 +1585,83 @@ async function login() {
 
     location.reload();
 }
+
+
+async function reportPayment(settlementId) {
+
+    console.log('💸 INFORMANDO PAGO:', settlementId);
+
+    const { error } = await supabaseClient
+        .from('settlements')
+        .update({
+            status: 'payment_reported',
+            payment_reported_at: new Date().toISOString()
+        })
+        .eq('id', settlementId);
+
+    if (error) {
+        console.error('❌ Error informando pago:', error);
+        alert('No se pudo informar el pago.');
+        return;
+    }
+
+    console.log('✅ Pago informado.');
+
+    await renderActivity();
+}
+
+
+async function confirmPayment(settlementId) {
+
+    console.log('✅ CONFIRMANDO RECEPCIÓN:', settlementId);
+
+    const { error } = await supabaseClient
+        .from('settlements')
+        .update({
+            status: 'paid',
+            paid_at: new Date().toISOString()
+        })
+        .eq('id', settlementId);
+
+    if (error) {
+        console.error('❌ Error confirmando pago:', error);
+        alert('No se pudo confirmar el pago.');
+        return;
+    }
+
+    console.log('✅ Pago confirmado.');
+
+    const activityId =
+        window.supabaseData?.currentActivityId;
+
+    await recalculateSettlements(activityId);
+
+    await renderActivity();
+}
+
+
+async function rejectPayment(settlementId) {
+
+    console.log('❌ RECHAZANDO PAGO:', settlementId);
+
+    const { error } = await supabaseClient
+        .from('settlements')
+        .update({
+            status: 'pending',
+            payment_reported_at: null
+        })
+        .eq('id', settlementId);
+
+    if (error) {
+        console.error('❌ Error rechazando pago:', error);
+        alert('No se pudo rechazar el pago.');
+        return;
+    }
+
+    console.log('↩️ Pago devuelto a pendiente.');
+
+    await renderActivity();
+}
+
+
+

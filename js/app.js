@@ -1044,16 +1044,29 @@ async function saveExpense() {
             return;
         }
 
-        console.log(
-            '✅ Participantes guardados:',
-            savedParticipants
+        console.log('✅ Participantes guardados:', savedParticipants);
+
+    console.log('🔄 Recalculando liquidaciones...');
+    
+    try {
+        await recalculateSettlements(activityId);
+        console.log('✅ Liquidaciones recalculadas correctamente.');
+    } catch (settlementError) {
+        console.error(
+            '⚠️ El gasto se guardó, pero no se pudieron recalcular las liquidaciones:',
+            settlementError
         );
-
-        alert('¡Gasto guardado! 🎉');
-
-        await renderActivity();
-
-    } catch (error) {
+    
+        alert(
+            'El gasto se guardó correctamente, pero hubo un problema actualizando las liquidaciones.'
+        );
+    }
+    
+    alert('¡Gasto guardado! 🎉');
+    
+    await renderActivity();
+    
+        } catch (error) {
 
         console.error(
             '💥 Error inesperado guardando gasto:',

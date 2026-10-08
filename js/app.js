@@ -651,7 +651,7 @@ async function renderActivity() {
 
         summary[memberId] = {
             id: memberId,
-            name: member.group_members?.display_name || 'Persona',
+            name: member.display_name || 'Persona',
             paid: 0,
             owed: 0,
             balance: 0

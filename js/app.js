@@ -917,119 +917,236 @@ async function renderActivity() {
         <!-- RESUMEN -->
         <!-- ========================= -->
 
-        <div class="card">
+    <div class="card">
 
-            <div class="section-title">
-                <h2>💰 Resumen</h2>
-            </div>
+    <div class="section-title">
+        <h2>💰 Resumen</h2>
+    </div>
 
+    <!-- TOTAL GASTADO -->
 
-            <div
-                style="
-                    text-align:center;
-                    margin-bottom:20px;
-                "
-            >
+    <div style="
+        padding:20px;
+        margin-bottom:18px;
+        border-radius:16px;
+        background:var(--surface-secondary, #f3f4f6);
+        text-align:center;
+    ">
+        <div style="
+            font-size:12px;                            
+            font-weight:700;
+            letter-spacing:1px;
+            opacity:0.7;
+        ">
+            TOTAL GASTADO
+        </div>
 
-                <small>
-                    TOTAL GASTADO
-                </small>
+        <div style="
+            font-size:30px;
+            font-weight:800;
+            margin-top:6px;
+        ">
+            $${Number(totalSpent / 100).toLocaleString('es-AR')}
+        </div>
 
-                <div
-                    style="
-                        font-size:28px;
-                        font-weight:700;
-                        margin-top:4px;
-                    "
-                >
-                    $${Number(
-                        totalSpent / 100
-                    ).toLocaleString('es-AR')}
-                </div>
-
-            </div>
-
-
-            ${
-                Object.values(summary)
-                    .map(person => {
-
-                        const balanceClass =
-                            person.balance > 0
-                                ? '🟢'
-                                : person.balance < 0
-                                    ? '🔴'
-                                    : '⚪';
+        <div style="
+            font-size:12px;
+            opacity:0.65;
+            margin-top:4px;
+        ">
+            ${gatheringMembers.length} participantes · ${expenses.length} gastos
+        </div>
+    </div>
 
 
-                        const balanceText =
-                            person.balance > 0
-                                ? `+${Number(
-                                    person.balance / 100
-                                ).toLocaleString('es-AR')}`
-                                : Number(
-                                    person.balance / 100
-                                ).toLocaleString('es-AR');
+    <!-- TARJETAS POR PERSONA -->
 
+    <div style="
+        display:flex;
+        flex-direction:column;
+        gap:12px;
+    ">
 
-                        return `
+        ${
+            Object.values(summary).map(person => {
 
-                            <div
-                                class="history-item"
-                                style="display:block;"
-                            >
+                const balance = person.balance;
 
-                                <strong>
-                                    ${escapeHtml(person.name)}
-                                </strong>
+                const balanceColor =
+                    balance > 0 ? '#218653'
+                    : balance < 0 ? '#C24141'
+                    : '#777777';
 
-                                <div
-                                    style="
-                                        display:flex;
-                                        justify-content:space-between;
-                                        margin-top:8px;
-                                        gap:10px;
-                                    "
-                                >
+                const balanceLabel =
+                    balance > 0 ? 'A favor'
+                    : balance < 0 ? 'Debe'
+                    : 'Saldado';
 
-                                    <small>
-                                        Puso:
-                                        $${Number(
-                                            person.paid / 100
-                                        ).toLocaleString('es-AR')}
-                                    </small>
+                const formattedBalance =
+                    `${balance > 0 ? '+' : balance < 0 ? '−' : ''}$${Math.abs(
+                        balance / 100
+                    ).toLocaleString('es-AR', {
+                        minimumFractionDigits: 0,
+                        maximumFractionDigits: 2
+                    })}`;
 
-                                    <small>
-                                        Le correspondía:
-                                        $${Number(
-                                            person.owed / 100
-                                        ).toLocaleString('es-AR')}
-                                    </small>
+                const initial =
+                    (person.name || '?').charAt(0).toUpperCase();
 
+                return `
+
+                    <div style="
+                        padding:15px;
+                        border:1px solid var(--border-color, #e5e7eb);
+                        border-radius:14px;
+                    ">
+
+                        <!-- PERSONA Y BALANCE -->
+
+                        <div style="
+                            display:flex;
+                            justify-content:space-between;
+                            align-items:center;
+                            gap:12px;
+                        ">
+
+                            <div style="
+                                display:flex;
+                                align-items:center;
+                                gap:11px;
+                                min-width:0;
+                            ">
+
+                                <div style="
+                                    width:42px;
+                                    height:42px;
+                                    flex-shrink:0;
+                                    border-radius:50%;
+                                    display:flex;
+                                    align-items:center;
+                                    justify-content:center;
+                                    font-size:18px;
+                                    font-weight:800;
+                                    background:var(--surface-secondary, #f3f4f6);
+                                ">
+                                    ${escapeHtml(initial)}
                                 </div>
 
-                                <div
-                                    style="
-                                        margin-top:6px;
-                                        font-weight:700;
-                                    "
-                                >
+                                <div style="min-width:0;">
 
-                                    ${balanceClass}
-                                    Balance:
-                                    ${balanceText}
+                                    <div style="
+                                        font-size:15px;
+                                        font-weight:700;
+                                    ">
+                                        ${escapeHtml(person.name)}
+                                    </div>
+
+                                    <div style="
+                                        font-size:12px;
+                                        opacity:0.7;
+                                        margin-top:3px;
+                                    ">
+                                        Puso $${Number(
+                                            person.paid / 100
+                                        ).toLocaleString('es-AR')}
+                                    </div>
 
                                 </div>
 
                             </div>
 
-                        `;
+                            <div style="
+                                text-align:right;
+                                flex-shrink:0;
+                            ">
 
-                    })
-                    .join('')
+                                <div style="
+                                    font-size:17px;
+                                    font-weight:800;
+                                    color:${balanceColor};
+                                ">
+                                    ${formattedBalance}
+                                </div>
+
+                                <div style="
+                                    font-size:11px;
+                                    color:${balanceColor};
+                                    margin-top:3px;
+                                ">
+                                    ${balanceLabel}
+                                </div>
+
+                            </div>
+
+                        </div>
+
+
+                        <!-- DETALLE DE IMPORTES -->
+
+                        <div style="
+                            display:flex;
+                            justify-content:space-between;
+                            gap:10px;
+                            margin-top:14px;
+                            padding-top:11px;
+                            border-top:1px solid var(--border-color, #e5e7eb);
+                        ">
+
+                            <div>
+
+                                <div style="
+                                    font-size:11px;
+                                    opacity:0.65;
+                                ">
+                                    Le correspondía
+                                </div>
+
+                                <div style="
+                                    font-size:13px;
+                                    font-weight:600;
+                                    margin-top:4px;
+                                ">
+                                    $${Number(
+                                        person.owed / 100
+                                    ).toLocaleString('es-AR')}
+                                </div>
+
+                            </div>
+
+                            <div style="
+                                text-align:right;
+                            ">
+
+                                <div style="
+                                    font-size:11px;
+                                    opacity:0.65;
+                                ">
+                                    Diferencia
+                                </div>
+
+                                <div style="
+                                    font-size:13px;
+                                    font-weight:700;
+                                    color:${balanceColor};
+                                    margin-top:4px;
+                                ">
+                                    ${formattedBalance}
+                                </div>
+
+                            </div>
+
+                        </div>
+
+                    </div>
+
+                `;
+
+                }).join('')
             }
 
         </div>
+
+    </div>
 
 
         <!-- ========================= -->

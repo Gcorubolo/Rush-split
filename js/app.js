@@ -28,7 +28,7 @@ async function checkAuth() {
         groupMembers
     };
 
-        ;
+    
 
     } catch (error) {
         console.error('Error inicializando RUSH SPLIT:', error);
@@ -210,7 +210,7 @@ function openGroup(groupId) {
     console.log('🆔 currentGroupId:', group.id);
 
     currentView = 'group';
-    ;
+    render();
 }
 
 async function createGroup() {
@@ -1590,7 +1590,7 @@ function openActivity(activityId) {
     );
 
     currentView = 'activity';
-    ;
+    render();
 }
 
 

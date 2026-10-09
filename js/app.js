@@ -41,11 +41,11 @@ const app=document.getElementById('app');
 const personName=id=>data.group.people.find(p=>p.id===id)?.name||'Persona';
 const emojiFor=type=>({food:'🥩',pizza:'🍕',drinks:'🍺',wine:'🍷',dessert:'🍰',snacks:'🍿',transport:'🚕',home:'🏠',ticket:'🎟️',gift:'🎁',supermarket:'🛒',other:'✨'}[type]||'✨');
 const fmtDate=d=>new Date(d).toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit',year:'numeric'});
-function setView(v){currentView=v;currentGatheringId=null;render()}
+ setView(v){currentView=v;currentGatheringId=null;render()}
 
 document.addEventListener('click',e=>{const btn=e.target.closest('.nav-item');if(btn){e.preventDefault();setView(btn.dataset.view)}});
 
-function  {
+  function render() {
     document
         .querySelectorAll('.nav-item')
         .forEach(b => {
@@ -70,6 +70,7 @@ function  {
     renderActivity();
     }
 }
+
 function shell(content){app.innerHTML=`<div class="content">${content}</div>`}
 function renderHome() {
     const profile = window.supabaseData?.profile;

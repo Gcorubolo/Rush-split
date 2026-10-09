@@ -67,7 +67,7 @@ function render() {
         renderPeople();
     }
     else if (currentView === 'activity') {
-    renderActivity();
+    ty();
 }
 }
 function shell(content){app.innerHTML=`<div class="content">${content}</div>`}
@@ -923,40 +923,45 @@ async function renderActivity() {
         <h2>💰 Resumen</h2>
     </div>
 
-    <!-- TOTAL GASTADO -->
+    ```html
+<!-- TOTAL GASTADO -->
+
+<div style="
+    padding:20px;
+    margin-bottom:18px;
+    border-radius:16px;
+    background:#252525;
+    color:#ffffff;
+    text-align:center;
+">
+    <div style="
+        font-size:12px;
+        font-weight:700;
+        letter-spacing:1px;
+        color:#bdbdbd;
+    ">
+        TOTAL GASTADO
+    </div>
 
     <div style="
-        padding:20px;
-        margin-bottom:18px;
-        border-radius:16px;
-        background:var(--surface-secondary, #f3f4f6);
-        text-align:center;
+        font-size:30px;
+        font-weight:800;
+        margin-top:6px;
+        color:#ffffff;
     ">
-        <div style="
-            font-size:12px;                            
-            font-weight:700;
-            letter-spacing:1px;
-            opacity:0.7;
-        ">
-            TOTAL GASTADO
-        </div>
-
-        <div style="
-            font-size:30px;
-            font-weight:800;
-            margin-top:6px;
-        ">
-            $${Number(totalSpent / 100).toLocaleString('es-AR')}
-        </div>
-
-        <div style="
-            font-size:12px;
-            opacity:0.65;
-            margin-top:4px;
-        ">
-            ${gatheringMembers.length} participantes · ${expenses.length} gastos
-        </div>
+        $${Number(totalSpent / 100).toLocaleString('es-AR')}
     </div>
+
+    <div style="
+        font-size:12px;
+        color:#bdbdbd;
+        margin-top:4px;
+    ">
+        ${gatheringMembers.length} participantes · ${expenses.length} gastos
+    </div>
+</div>
+```
+
 
 
     <!-- TARJETAS POR PERSONA -->

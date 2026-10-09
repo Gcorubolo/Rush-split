@@ -28,7 +28,7 @@ async function checkAuth() {
         groupMembers
     };
 
-        render();
+        ;
 
     } catch (error) {
         console.error('Error inicializando RUSH SPLIT:', error);
@@ -45,7 +45,7 @@ function setView(v){currentView=v;currentGatheringId=null;render()}
 
 document.addEventListener('click',e=>{const btn=e.target.closest('.nav-item');if(btn){e.preventDefault();setView(btn.dataset.view)}});
 
-function render() {
+function  {
     document
         .querySelectorAll('.nav-item')
         .forEach(b => {
@@ -67,8 +67,8 @@ function render() {
         renderPeople();
     }
     else if (currentView === 'activity') {
-    ty();
-}
+    renderActivity();
+    }
 }
 function shell(content){app.innerHTML=`<div class="content">${content}</div>`}
 function renderHome() {
@@ -209,7 +209,7 @@ function openGroup(groupId) {
     console.log('🆔 currentGroupId:', group.id);
 
     currentView = 'group';
-    render();
+    ;
 }
 
 async function createGroup() {
@@ -1589,7 +1589,7 @@ function openActivity(activityId) {
     );
 
     currentView = 'activity';
-    render();
+    ;
 }
 
 

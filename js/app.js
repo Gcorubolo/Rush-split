@@ -923,7 +923,7 @@ async function renderActivity() {
         <h2>💰 Resumen</h2>
     </div>
 
-    ```html
+    
 <!-- TOTAL GASTADO -->
 
 <div style="

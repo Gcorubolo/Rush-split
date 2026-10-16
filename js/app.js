@@ -484,14 +484,18 @@ async function renderGroupDashboard() {
         return;
     }
 
-    const allMembers = window.supabaseData?.groupMembers || [];
+    const members = await getGroupMembers(group.id);
 
-    console.log('👥 Todos los integrantes:', allMembers);
-    console.log('🆔 ID del grupo actual:', group.id);
+    window.supabaseData.groupMembers = members;
     
-    const members = allMembers.filter(member =>
-        member.group_id === group.id
-    );
+    console.log('👥 Integrantes cargados:', members);
+    console.log('🆔 Grupo consultado:', group.id);
+    
+    const gatherings = await loadCurrentGroupGatherings();
+        
+        const members = allMembers.filter(member =>
+            member.group_id === group.id
+        );
     
     console.log('✅ Integrantes del grupo actual:', members);
     

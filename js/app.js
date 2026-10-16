@@ -41,7 +41,13 @@ const app=document.getElementById('app');
 const personName=id=>data.group.people.find(p=>p.id===id)?.name||'Persona';
 const emojiFor=type=>({food:'🥩',pizza:'🍕',drinks:'🍺',wine:'🍷',dessert:'🍰',snacks:'🍿',transport:'🚕',home:'🏠',ticket:'🎟️',gift:'🎁',supermarket:'🛒',other:'✨'}[type]||'✨');
 const fmtDate=d=>new Date(d).toLocaleDateString('es-AR',{day:'2-digit',month:'2-digit',year:'numeric'});
- setView(v){currentView=v;currentGatheringId=null;render()}
+ 
+function setView(v) {
+    currentView = v;
+    currentGatheringId = null;
+    render();
+}
+
 
 document.addEventListener('click',e=>{const btn=e.target.closest('.nav-item');if(btn){e.preventDefault();setView(btn.dataset.view)}});
 

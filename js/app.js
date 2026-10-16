@@ -484,7 +484,17 @@ async function renderGroupDashboard() {
         return;
     }
 
-    const members = window.supabaseData?.groupMembers || [];
+    const allMembers = window.supabaseData?.groupMembers || [];
+
+    console.log('👥 Todos los integrantes:', allMembers);
+    console.log('🆔 ID del grupo actual:', group.id);
+    
+    const members = allMembers.filter(member =>
+        member.group_id === group.id
+    );
+    
+    console.log('✅ Integrantes del grupo actual:', members);
+    
     const gatherings = await loadCurrentGroupGatherings();
 
     shell(`

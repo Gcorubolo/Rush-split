@@ -967,8 +967,6 @@ async function renderActivity() {
         ${gatheringMembers.length} participantes · ${expenses.length} gastos
     </div>
 </div>
-```
-
 
 
     <!-- TARJETAS POR PERSONA -->

@@ -476,6 +476,7 @@ function parseMoney(v){
   const n=Number(normalized.replace(/[^0-9.-]/g,''));
   return Number.isFinite(n)?Math.round(n*100):0;
 }
+
 async function renderGroupDashboard() {
     const group = window.supabaseData?.currentGroup;
 
@@ -487,21 +488,14 @@ async function renderGroupDashboard() {
     const members = await getGroupMembers(group.id);
 
     window.supabaseData.groupMembers = members;
-    
+
     console.log('👥 Integrantes cargados:', members);
     console.log('🆔 Grupo consultado:', group.id);
-    
-    const gatherings = await loadCurrentGroupGatherings();
-        
-        const members = allMembers.filter(member =>
-            member.group_id === group.id
-        );
-    
-    console.log('✅ Integrantes del grupo actual:', members);
-    
+
     const gatherings = await loadCurrentGroupGatherings();
 
     shell(`
+
         <section class="hero">
             <div class="eyebrow">Grupo seleccionado</div>
 

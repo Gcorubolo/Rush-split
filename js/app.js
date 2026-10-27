@@ -494,6 +494,22 @@ async function renderGroupDashboard() {
 
     const gatherings = await loadCurrentGroupGatherings();
 
+    
+    let totalSpentCents = 0;
+    
+    for (const gathering of gatherings) {
+        const expenses = await getExpenses(gathering.id);
+    
+        totalSpentCents += expenses.reduce(
+            (total, expense) => total + Number(expense.amount_cents || 0),
+            0
+        );
+    }
+    
+    console.log('💰 Total gastado en el grupo:', totalSpentCents / 100);
+    console.log('📅 Total de juntadas:', gatherings.length);
+
+
     shell(`
 
         <section class="hero">
@@ -506,44 +522,59 @@ async function renderGroupDashboard() {
             </p>
         </section>
 
+        
         <div class="card">
             <div class="section-title">
-                <h2>💰 Resumen</h2>
+                <h2>📊 Resumen del grupo</h2>
             </div>
-
-            <div class="empty">
-                Acá vamos a mostrar tu balance y quién debe a quién.
+        
+            <div style="
+                display:grid;
+                grid-template-columns:repeat(2, minmax(0, 1fr));
+                gap:12px;
+            ">
+                <div style="
+                    background:#252525;
+                    color:#ffffff;
+                    border-radius:16px;
+                    padding:18px 14px;
+                ">
+                    <div style="font-size:13px;color:#bdbdbd;">
+                        💰 Total gastado
+                    </div>
+        
+                    <div style="
+                        font-size:clamp(19px, 4vw, 28px);
+                        font-weight:800;
+                        margin-top:8px;
+                        overflow-wrap:anywhere;
+                    ">
+                        $${(totalSpentCents / 100).toLocaleString('es-AR', {
+                            maximumFractionDigits: 2
+                        })}
+                    </div>
+                </div>
+        
+                <div style="
+                    background:var(--surface-secondary, #f3f4f6);
+                    border-radius:16px;
+                    padding:18px 14px;
+                ">
+                    <div style="font-size:13px;opacity:0.7;">
+                        📅 Total de juntadas
+                    </div>
+        
+                    <div style="
+                        font-size:28px;
+                        font-weight:800;
+                        margin-top:8px;
+                    ">
+                        ${gatherings.length}
+                    </div>
+                </div>
             </div>
         </div>
 
-        <div class="card">
-            <div class="section-title">
-                <h2>👥 Integrantes</h2>
-                <button
-                    class="back"
-                    onclick="renderPeople()"
-                >
-                    Administrar →
-                </button>
-            </div>
-
-            <div class="people-preview">
-                ${
-                    members.length
-                        ? members.map(member => `
-                            <span class="tag">
-                                👤 ${escapeHtml(member.display_name)}
-                            </span>
-                        `).join('')
-                        : `<div class="empty">Todavía no hay integrantes.</div>`
-                }
-            </div>
-        </div>
-
-        <div class="card">
-    <div class="section-title">
-        <h2>📅 Juntadas</h2>
-    </div>
 
     ${
         gatherings.length
